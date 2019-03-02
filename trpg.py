@@ -2,64 +2,62 @@ import math
 import random
 
 class Dice:
+    """ 2d6形式を表現できる乱数クラス """
     def __init__(self, times, maxim):
         self.times = times
         self.maxim = maxim
-
-    def dice(self):
-        return sum(random.randint(1, self.maxim) for i in range(self.times))
-
-    def center(self):
-        return self.times * self.maxim / 2
+        self.dice = lambda: sum(random.randint(1, self.maxim) for i in range(self.times))
+        self.wall = lambda: self.times * self.maxim / 2
 
 class Param():
+    """ Thingの属性（パラメータ）になる """
+    master = dict()
+
     def __init__(self, name, dic, dice):
         self.name = name
         self.weight = dic
-        self.dice_cls = dice
+        Param.master[self.name] = self
 
-    def dice(self):
-        return self.dice_cls.dice()
+        # pointA: 重み(0 <= n <= 1)とパラメータ(params[i])の数値を掛けたものの和
+        self.pointA = lambda params: sum(Param.master[i].point(params) * self.weight[i] for i in self.weight.keys())
+        # pointB: 当クラスのパラメータ(params[self.name])の数値に残りの重みパーセンテージ(1 - sum(n))をかけた数値
+        self.pointB = lambda params: params[self.name] * (1 - sum(self.weight[i] for i in self.weight.keys()))
+        # pointAとpointBの和、pointAで遡って各子Paramの重み計算が動的にできる
+        self.point = lambda params: self.pointA(params) + self.pointB(params)
 
-    def center(self):
-        return self.dice_cls.center()
+        self.dice = dice.dice
+        self.wall = dice.wall
 
 class Thing:
+    """ 対象となるもの、オブジェクト """
     def __init__(self, name, dic):
         self.name = name
         self.params = dic
 
-    def point(self, paramd):
-        p = self.params
-        s = self.params[paramd.name]
-        w = paramd.weight
+        # パーセンテージ（HPなど）
+        self.params_tmp = dict()
+        for i in self.params:
+            self.params_tmp[i] = 1
 
-        n = sum(p[i] * w[i] for i in w.keys()) + s
+        self.point = lambda param: param.point(self.params)
 
-        return n * paramd.dice()
+        self.dice = lambda param: self.point(param) * param.dice()
+        self.wall = lambda param: self.point(param) * param.wall()
 
-    def borderline(self, paramd):
-        p = self.params
-        s = self.params[paramd.name]
-        w = paramd.weight
-
-        n = sum(p[i] * w[i] for i in w.keys()) + s
-
-        return n * paramd.center()
+class Progress:
+    """
+    1. 比較し結果を得る
+    2. 結果をもとにパラメータを変動させる
+    """
+    def __init__(self):
+        pass
 
 class Game:
-    def __init__(self, paramd):
-        self.paramd = paramd
-        self.obj = 0
-        self.subj = 0
+    """ 引数にParamを一つ渡し、それについて２つのThingが競う """
+    def __init__(self, param):
+        self.param = param
+        
+        self.point = lambda subj: subj.dice(self.param)
+        self.wall = lambda obj: obj.wall(self.param)
 
-    def compare(self):
-        return self.subj - self.obj
-
-    def subject_point(self, subj):
-        self.subj = subj.point(self.paramd)
-        return self.subj
-
-    def object_borderline(self, obj):
-        self.obj = obj.borderline(self.paramd)
-        return self.obj
+        self.compare = lambda subj, obj: subj.dice(self.param) - obj.center(self.param)
