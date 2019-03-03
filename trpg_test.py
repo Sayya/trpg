@@ -1,63 +1,54 @@
-from trpg import Dice, Param, Thing, Game
+from trpg import Dice, Param, Multi, Thing, Progress, Event, Game
 
 class Test:
     def __init__(self):
-        Param('POW1', dict(), Dice(0,0))
-        Param('POW2', dict(), Dice(0,0))
-        Param('POW3', dict(), Dice(0,0))
-        Param('SEN1', dict(), Dice(0,0))
-        Param('SEN2', dict(), Dice(0,0))
-        Param('SEN3', dict(), Dice(0,0))
-        Param('INT1', dict(), Dice(0,0))
-        Param('INT2', dict(), Dice(0,0))
-        Param('INT3', dict(), Dice(0,0))
+        Param('POW', {'POW': 1}, Dice(0,0))
+        Param('SEN', {'SEN': 1}, Dice(0,0))
+        Param('INT', {'INT': 1}, Dice(0,0))
 
-        Param('Swim', {'POW1': 0.1}, Dice(2,6))
-        Param('Hit' , {'POW2': 0.3, 'INT1': 0.2}, Dice(3,5))
-        Param('Piano', {'INT1': 0.3, 'INT3': 0.2}, Dice(4,4))
-        Param('Math', {'INT3': 0.3, 'SEN3': 0.2}, Dice(5,3))
+        Param('Limb', {'Limb': 1, 'POW': 0.5, 'SEN': 0.2}, Dice(2,6))
+        Param('Body', {'Body': 1, 'POW': 0.3, 'INT': 0.4}, Dice(2,6))
+
+        Param('Punch', {'Punch': 1, 'Limb': 0.3, 'Body': 0.2}, Dice(2,6))
+        Param('Punch_Offence', {'Punch_Offence': 1, 'Limb': 0.5}, Dice(2,6))
+        Param('Punch_Deffence', {'Punch_Deffence': 1, 'Body': 0.5}, Dice(2,6))
+
+        Multi('Battle', Param.master['Punch'], Param.master['Punch_Offence'], Param.master['Punch_Deffence'])
 
         d26 = Dice(2, 6).dice
         self.c1 = Thing(
             'YUSHA',
             {
-                'POW1': d26(),
-                'POW2': d26(),
-                'POW3': d26(),
-                'SEN1': d26(),
-                'SEN2': d26(),
-                'SEN3': d26(),
-                'INT1': d26(),
-                'INT2': d26(),
-                'INT3': d26(),
+                'POW': d26(),
+                'SEN': d26(),
+                'INT': d26(),
 
-                'Swim': d26(),
-                'Hit' : d26(),
-                'Piano': d26(),
-                'Math': d26(),
+                'Limb': d26(),
+                'Body': d26(),
+
+                'Punch': d26(),
+                'Punch_Offence': d26(),
+                'Punch_Deffence': d26(),
             }
         )
         self.c2 = Thing(
             'DRAGO',
             {
-                'POW1': d26(),
-                'POW2': d26(),
-                'POW3': d26(),
-                'SEN1': d26(),
-                'SEN2': d26(),
-                'SEN3': d26(),
-                'INT1': d26(),
-                'INT2': d26(),
-                'INT3': d26(),
+                'POW': d26(),
+                'SEN': d26(),
+                'INT': d26(),
 
-                'Swim': d26(),
-                'Hit' : d26(),
-                'Piano': d26(),
-                'Math': d26(),
+                'Limb': d26(),
+                'Body': d26(),
+
+                'Punch': d26(),
+                'Punch_Offence': d26(),
+                'Punch_Deffence': d26(),
             }
         )
 
     def test01(self, times):
+        """times回数の平均Param値を算出"""
 
         result = dict()
         for i in Param.master:
@@ -86,21 +77,50 @@ class Test:
                 print('- {0} : {1:3}'.format(i, self.c2.params[i]), end=' ')
         print()
 
+
     def test02(self, times):
-        
-        p, *_ = [ Param.master[i] for i in Param.master if i == 'Swim']
-        g = Game(p)
+        """times回数Multi.compare()を出力する"""
+        m = Multi.master['Battle']
         
         for i in range(times):
-            print(
-                'SUbject - {0:3} [VS] Object - {1:3}'.format(
-                    int(g.point(self.c1)),
-                    int(g.wall(self.c2)),
-                ),
-                end=' '
-            )
-            print('This [{0}]Game Result :'.format('Swim'), int(g.compare(self.c1, self.c2)))
+            print('This [{0}]Game Result :'.format('Battle'), int(m.compare(self.c1, self.c2)))
 
 
-Test().test01(10)
-Test().test02(10)
+    def test03_1(self):
+        """終了までのProgress.next()の調査"""
+        
+        m = Multi.master['Battle']
+        p = m.main
+        prog = Progress(m)
+        print(p.name, 'ceil:', p.ceil())
+        print(self.c2.name, 'MAX HP:', int(self.c2.hp(p)))
+        print()
+
+        count = 0
+        result = True
+        while result:
+            count += 1
+            print('count:', count)
+            result = prog.next(self.c1, self.c2)
+            print()
+        print(count, 'times')
+
+
+    def test03_2(self):
+        """一回のProgress.next()の調査"""
+        
+        m = Multi.master['Battle']
+        p = m.main
+        prog = Progress(m)
+        print(p.name, 'ceil:', p.ceil())
+        print(self.c2.name, 'MAX HP:', int(self.c2.hp(p)))
+        print()
+
+        result = prog.next(self.c1, self.c2)
+        print('result:', result)
+
+
+#Test().test01(10)
+#Test().test02(5)
+#Test().test03_1()
+Test().test03_2()
