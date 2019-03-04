@@ -36,25 +36,6 @@ class Param:
         self.ceil = dice.ceil
         self.wall = dice.wall
 
-class Multi:
-    """ Thingの属性（パラメータ）になる② """
-    master = dict()
-
-    def __init__(self, name, param0, param1, param2, things1, things2):
-        self.name = name
-        self.target = param0
-        self.sbj_param = param1
-        self.obj_param = param2
-        self.sbj_things = things1
-        self.obj_things = things2
-        Multi.master[self.name] = self
-
-    # ２つのThingが競う
-    def compare(self, sbj, obj):
-        offence = sbj.dice(self.target) + sbj.point(self.sbj_param) + sum(self.sub_things[i].point(self.target) for i in self.sub_things.keys())
-        defence = obj.wall(self.main) + obj.point(self.obj_modif)
-        return offence - defence
-
 class Thing:
     """ 対象となるもの、オブジェクト """
     def __init__(self, name, dic):
@@ -63,19 +44,42 @@ class Thing:
 
         # パーセンテージ（HPなど）
         self.p_ratio = dict()
-        for i in self.params:
+        for i in self.params.keys():
             self.p_ratio[i] = 1
 
         # 引数：対象のパラメータ
         self.point = lambda param: param.point(self.params)
-        self.dice = lambda param: param.point(self.params) * param.dice()
-        self.ceil = lambda param: param.point(self.params) * param.ceil()
-        self.wall = lambda param: param.point(self.params) * param.wall()
+        self.siz = lambda param: self.point(param) * param.ceil()
+        self.bar = lambda param: self.siz(param) * self.p_ratio[param.name]
 
-        self.hp = lambda param: self.p_ratio[param.name] * self.ceil(param)
+    def change(self, param, n):
+        self.p_ratio[param.name] = (self.bar(param) + n) / self.siz(param)
 
-    def decreace(self, param, n):
-        self.p_ratio[param.name] = (self.ceil(param) * self.p_ratio[param.name] - n) / self.ceil(param)
+class Multi:
+    """ Thingの属性（パラメータ）になる② """
+    master = dict()
+
+    def __init__(self, name, param0, param1, param2, things1, things2):
+        self.name = name
+        self.target = param0
+
+        self.sbj_param = param1
+        self.obj_param = param2
+
+        self.sbj_things = things1
+        self.obj_things = things2
+
+        Multi.master[self.name] = self
+
+    # ２つのThingが競う
+    def compare(self, sbj, obj):
+        sbj_things_sum = sum(self.sbj_things[i].point(self.target) for i in self.sbj_things.keys()) + 1
+        obj_things_sum = sum(self.obj_things[i].point(self.target) for i in self.obj_things.keys()) + 1
+        
+        offence = sbj.point(self.target) * sbj_things_sum * self.target.dice() + sbj.point(self.sbj_param)
+        defence = obj.point(self.target) * obj_things_sum * self.target.dice() + obj.point(self.obj_param)
+        
+        return offence - defence
 
 class Progress:
     """
@@ -84,24 +88,35 @@ class Progress:
     3. パラメータの変動の結果、終了条件に適合すれば結果処理をする
     """
     
-    def __init__(self, multi):
+    def __init__(self, multi, sbj, obj):
         self.multi = multi
+        self.sbj = sbj
+        self.obj = obj
 
-    def decreace(self, subj, obj):
-        n = self.multi.compare(subj, obj)
-        print(self.multi.name, 'damage:',  int(n))
-        if n > 0:
-            obj.decreace(self.multi.main, n)
-        return obj.p_ratio[self.multi.main.name]
+    def compare(self):
+        return self.multi.compare(self.sbj, self.obj)
 
-    def next(self, subj, obj):
-        r = self.decreace(subj, obj)
-        print(obj.name, 'HP:', int(obj.hp(self.multi.main)))
-        print(obj.name, 'ratio:', int(r * 100), '%')
+    def change(self, n):
+        """ n: self.compare() の戻り値 """
+        self.obj.change(self.multi.target, n)
+        return self.obj.p_ratio[self.multi.target.name]
+
+    def next(self, r):
+        """ r: self.change() の戻り値 """
         if r <= 0:
             return False
         else:
             return True
+
+class Cost:
+    """ コストの設計 """
+    def __init__(self):
+        pass
+
+class Select:
+    """ 選択の設計 """
+    def __init__(self):
+        pass
 
 class Event:
     """ イベントの設計 """
