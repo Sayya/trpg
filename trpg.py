@@ -40,16 +40,18 @@ class Multi:
     """ Thingの属性（パラメータ）になる② """
     master = dict()
 
-    def __init__(self, name, param1, param2, param3):
+    def __init__(self, name, param0, param1, param2, things1, things2):
         self.name = name
-        self.main = param1
-        self.subj_modif = param2
-        self.obj_modif = param3
+        self.target = param0
+        self.sbj_param = param1
+        self.obj_param = param2
+        self.sbj_things = things1
+        self.obj_things = things2
         Multi.master[self.name] = self
 
     # ２つのThingが競う
-    def compare(self, subj, obj):
-        offence = subj.dice(self.main) + subj.point(self.subj_modif)
+    def compare(self, sbj, obj):
+        offence = sbj.dice(self.target) + sbj.point(self.sbj_param) + sum(self.sub_things[i].point(self.target) for i in self.sub_things.keys())
         defence = obj.wall(self.main) + obj.point(self.obj_modif)
         return offence - defence
 
