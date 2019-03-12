@@ -16,8 +16,7 @@ class Dice:
 
 class Param:
     """ Thingの属性（パラメータ）になる """
-    master = dict()
-
+    master = dict(
     def __init__(self, name, dic, dice):
         self.name = name
         self.weight = dic
@@ -121,14 +120,6 @@ class Progress:
             return False
         else:
             return True
-
-class Gate:
-    """
-    Thingのパラメータへ干渉するための関門 
-    1. コスト管理
-    """
-    def __init__(self):
-        pass
     
     def add(self, thing, param, n):
         thing.params[param.name] += n
@@ -138,15 +129,49 @@ class Select:
     def __init__(self):
         pass
 
-class Place:
-    """ 場所の設計 """
-    def __init__(self):
-        pass
-
 class Event:
     """ イベントの設計 """
     def __init__(self):
         pass
+        
+    """
+    繰返し(True, False)
+    """
+    def occur1(self, prog):
+        while prog.next(prog.change(prog.compare())):
+            pass
+        
+    """
+    比較(数値)
+    """
+    def occur2(self, prog):
+        while prog.next(prog.change(prog.compare())):
+            pass
+        
+    """
+    交換(Void)
+    """
+    def occur3(self, prog):
+        while prog.next(prog.change(prog.compare())):
+            pass
+        
+    """
+    変更(Void)
+    """
+    def occur4(self, prog):
+        while prog.next(prog.change(prog.compare())):
+            pass
+
+class Route:
+    """
+    Thingのパラメータへ干渉するための関門 
+    1. コスト管理
+    """
+    master = dict(
+    def __init__(self, name, dic):
+        self.name = name
+        self.destinations = dic
+        Route.master[self.name] = self
 
 class Game:
     def __init__(self):
