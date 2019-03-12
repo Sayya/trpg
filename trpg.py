@@ -6,17 +6,19 @@ class Dice:
     def __init__(self, times, maxim, offset=0):
         self.times = times
         self.maxim = maxim
-        self.offst = offset
+        self.offset = offset
 
         # 戻値：数値
-        self.dice = lambda: sum(random.randint(1, self.maxim) for i in range(self.times)) + self.offst
-        self.ceil = lambda: self.times * self.maxim + self.offst
-        self.wall = lambda: self.times * (self.maxim + 1) / 2 + self.offst
-        self.flor = lambda: self.times * self.maxim + self.offst
+        self.dice = lambda: sum(random.randint(1, self.maxim) for i in range(self.times)) + self.offset
+
+        self.ceil = lambda: self.times * self.maxim + self.offset
+        self.wall = lambda: self.times * (self.maxim + 1) / 2 + self.offset
+        self.flor = lambda: self.times * self.maxim + self.offset
 
 class Param:
     """ Thingの属性（パラメータ）になる """
-    master = dict(
+    master = dict()
+
     def __init__(self, name, dic, dice):
         self.name = name
         self.weight = dic
@@ -42,12 +44,15 @@ class Thing:
     master = dict()
     pid = 0
 
-    def __init__(self, name, dic1, dic2):
+    def __init__(self, name, dic, lis):
         self.name = name
-        self.params = dic1
-        self.propts = dic2
-        self.pid = Thing.pid
+        self.params = dic
 
+        self.propts = lis
+        self.f_compare = list()
+        self.f_xchange = list()
+
+        self.pid = Thing.pid
         Thing.master[Thing.pid] = self
         Thing.pid += 1
 
@@ -61,17 +66,13 @@ class Thing:
         self.siz = lambda param: self.point(param) * param.ceil()
         self.bar = lambda param: self.siz(param) * self.p_ratio[param.name]
 
-    def change(self, param, n):
+    def fluctuate(self, param, n):
         self.p_ratio[param.name] = (self.bar(param) + n) / self.siz(param)
 
-class Roll:
-    """ 権限の単位、TRPGにおけるPL、PCのPLにあたる """
-    def __init__(self, name, dic):
-        self.name = name
-        self.propts = dic
+    def change(self, param, n):
+        self.params[param.name] += n
 
-
-class Multi:
+class Process:
     """ Thingの属性（パラメータ）になる② """
     master = dict()
 
@@ -82,97 +83,102 @@ class Multi:
         self.sbj_param = param1
         self.obj_param = param2
 
-        Multi.master[self.name] = self
+        Process.master[self.name] = self
+    
+    def vchange(self, sbj, obj):
+        obj.change(self.target, sbj.point(self.target))
 
-    # ２つのThingが競う
+    # あるパラメータについて２つのThingにおける交換
+    def xchange(self, sbj, obj):
+        sbj_propts_target = [i for i in sbj.f_xchange if self.target.name in sbj.f_xchange[i].params]
+        sbj_propts_nonget = [i for i in sbj.f_xchange if self.target.name not in sbj.f_xchange[i].params]
+        obj_propts_target = [i for i in obj.f_xchange if self.target.name in obj.f_xchange[i].params]
+        obj_propts_nonget = [i for i in obj.f_xchange if self.target.name not in obj.f_xchange[i].params]
+
+        sbj.f_xchange = sbj_propts_nonget.extend(obj_propts_target)
+        obj.f_xchange = obj_propts_nonget.extend(sbj_propts_target)
+
+    # あるパラメータについて２つのThingにおける差
     def compare(self, sbj, obj):
-        sbj_things_sum = sum(sbj.propts[i].point(self.target) for i in sbj.propts.keys() if self.target.name in sbj.propts[i].params) + 1
-        obj_things_sum = sum(obj.propts[i].point(self.target) for i in obj.propts.keys() if self.target.name in sbj.propts[i].params) + 1
+        sbj_propts_sum = sum(sbj.f_compare[i].point(self.target) for i in sbj.f_compare.keys() if self.target.name in sbj.f_compare[i].params) + 1
+        obj_propts_sum = sum(obj.f_compare[i].point(self.target) for i in obj.f_compare.keys() if self.target.name in sbj.f_compare[i].params) + 1
         
-        offence = sbj.point(self.target) * sbj_things_sum * self.target.dice() + sbj.point(self.sbj_param)
-        defence = obj.point(self.target) * obj_things_sum * self.target.dice() + obj.point(self.obj_param)
+        offence = sbj.point(self.target) * sbj_propts_sum * self.target.dice() + sbj.point(self.sbj_param)
+        defence = obj.point(self.target) * obj_propts_sum * self.target.dice() + obj.point(self.obj_param)
         
         return offence - defence
 
-class Progress:
-    """
-    1. 比較し結果を得る
-    2. 結果をもとにパラメータを変動させる
-    3. パラメータの変動の結果、終了条件に適合すれば結果処理をする
-    """
-    
-    def __init__(self, multi, sbj, obj):
-        self.multi = multi
-        self.sbj = sbj
-        self.obj = obj
-
-    def compare(self):
-        return self.multi.compare(self.sbj, self.obj)
-
-    def change(self, n):
+    def fluctuate(self, obj, n):
         """ n: self.compare() の戻り値 """
-        self.obj.change(self.multi.target, n)
-        return self.obj.p_ratio[self.multi.target.name]
+        obj.fluctuate(self.target, n)
+        return obj.p_ratio[self.target.name]
 
     def next(self, r):
-        """ r: self.change() の戻り値 """
+        """
+        r: self.fluctuate() の戻り値
+        1. 比較し結果を得る
+        2. 結果をもとにパラメータを変動させる
+        3. パラメータの変動の結果、終了条件に適合すれば結果処理をする
+        """
         if r <= 0:
             return False
         else:
             return True
-    
-    def add(self, thing, param, n):
-        thing.params[param.name] += n
 
-class Select:
-    """ 選択の設計 """
-    def __init__(self):
-        pass
-
-class Event:
-    """ イベントの設計 """
-    def __init__(self):
-        pass
-        
-    """
-    繰返し(True, False)
-    """
-    def occur1(self, prog):
-        while prog.next(prog.change(prog.compare())):
-            pass
-        
-    """
-    比較(数値)
-    """
-    def occur2(self, prog):
-        while prog.next(prog.change(prog.compare())):
-            pass
-        
-    """
-    交換(Void)
-    """
-    def occur3(self, prog):
-        while prog.next(prog.change(prog.compare())):
-            pass
-        
-    """
-    変更(Void)
-    """
-    def occur4(self, prog):
-        while prog.next(prog.change(prog.compare())):
-            pass
-
-class Route:
-    """
-    Thingのパラメータへ干渉するための関門 
-    1. コスト管理
-    """
-    master = dict(
+class Role:
+    """ 権限の単位、TRPGにおけるPL、PCのPLにあたる """
     def __init__(self, name, dic):
         self.name = name
-        self.destinations = dic
-        Route.master[self.name] = self
+        self.propts = dic
 
+class Select:
+
+    def __init__(self, dic):
+        self.roles = dic
+
+class Product:
+    master = dict()
+
+    """ イベントの設計 """
+    def __init__(self, name, prog, lis):
+        self.name = name
+        self.event = lis
+        Product.master[self.name] = self
+
+class Event:
+    """
+    イベント処理
+    1. テキストによる状況説明
+    2. 以下のうち一つか複数
+    ・Processの繰り返し、中断（compare, fluctuate, next）
+    ・Thingsの比較（compare）
+    ・Thingの交換（xchange）
+    ・Thingのパラム変更（vchange）
+
+    ・生成（Product）
+    ・Eventの挿入
+    """
+    master = dict()
+
+    """ ルーティングの設計 """
+    def __init__(self, name, dic, deed, noend):
+        self.name = name
+        self.route = dic
+        self.deed = deed
+        self.noend = noend
+        Event.master[self.name] = self
+    
+    def next(self):
+        n = self.deed()
+        for i in sorted(self.route.keys()):
+            if n < self.route[i]:
+                return Event.master[i]
+        else:
+            return Event.master[sorted(self.route.keys())[0]]
 class Game:
-    def __init__(self):
-        pass
+    def __init__(self, event):
+        self.event = event
+    
+    def start(self):
+        while self.event.noend:
+            self.event = self.event.next()

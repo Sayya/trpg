@@ -1,4 +1,4 @@
-from trpg import Dice, Param, Multi, Thing, Progress, Event, Game
+from trpg import Dice, Param, Thing, Process, Event, Game
 
 class Test:
     def __init__(self):
@@ -13,12 +13,10 @@ class Test:
         Param('Punch_Offence', {'Punch_Offence': 0.1, 'Limb': 0.5}, Dice(2,6))
         Param('Punch_Deffence', {'Punch_Deffence': 1, 'Body': 0.5}, Dice(2,6))
 
-        Multi('Battle',
+        self.p1 = Process('Battle',
             Param.master['Punch'],
             Param.master['Punch_Offence'],
             Param.master['Punch_Deffence'],
-            dict(),
-            dict(),
         )
 
         d26 = Dice(2, 6).dice
@@ -35,7 +33,8 @@ class Test:
                 'Punch': d26(),
                 'Punch_Offence': d26(),
                 'Punch_Deffence': d26(),
-            }
+            },
+            dict(),
         )
         self.c2 = Thing(
             'DRAGO',
@@ -50,7 +49,35 @@ class Test:
                 'Punch': d26(),
                 'Punch_Offence': d26(),
                 'Punch_Deffence': d26(),
-            }
+            },
+            dict(),
+        )
+
+        self.e1 = Event(
+            'Event1',
+            {
+                'Event2': 3,
+                'Event3': 5,
+            },
+            self.p1.next,
+            True,
+        )
+
+        self.e1 = Event(
+            'Event2',
+            {
+                'Event1': 2,
+                'Event3': 5,
+            },
+            print,
+            True,
+        )
+
+        self.e1 = Event(
+            'Event3',
+            dict(),
+            print,
+            False,
         )
 
     def test01(self, times):
@@ -74,87 +101,50 @@ class Test:
         print(self.c1.name, end=' ')
         for i in Param.master:
             if len(Param.master[i].weight) != 0:
-                print('- {0} : {1:3}'.format(i, self.c1.params[i]), end=' ')
+                if i in self.c1.params:
+                   print('- {0} : {1:3}'.format(i, self.c1.params[i]), end=' ')
         print()
 
         print(self.c2.name, end=' ')
         for i in Param.master:
             if len(Param.master[i].weight) != 0:
-                print('- {0} : {1:3}'.format(i, self.c2.params[i]), end=' ')
+                if i in self.c2.params:
+                   print('- {0} : {1:3}'.format(i, self.c2.params[i]), end=' ')
         print()
         print()
 
 
     def test02(self, times):
-        """times回数Multi.compare()を出力する"""
-        m = Multi.master['Battle']
+        """times回数Process.compare()を出力する"""
+        m = Process.master['Battle']
         
         for i in range(times):
             print('This [{0}]Game Result :'.format('Battle'), int(m.compare(self.c1, self.c2)))
         print()
 
+    def test03(self):
+        """一回のProcess.next()の調査"""
 
-    def test03_1(self):
-        """終了までのProgress.next()の調査"""
-        
-        m = Multi.master['Battle']
-        p = m.target
-        prog = Progress(m, self.c1, self.c2)
-        event = Event(prog)
-
-        print(self.c1.name, 'WALL:', int(self.c1.point(p) * p.wall()))
-        print(self.c2.name, 'MAX HP:', int(self.c2.bar(p)))
+        print(self.c1.name, 'WALL:', int(self.c1.point(self.p1.target)))
+        print(self.c2.name, 'MAX HP:', int(self.c2.bar(self.p1.target)))
         print()
 
-        count = 0
-        result = True
-        while result:
-            count += 1
-            print('count:', count)
-
-            n = prog.compare()
-            if n < 0:
-                n = 0
-            r = prog.change(-1 * n)
-            result = prog.next(r)
-
-            print(prog.multi.name, 'damage:',  int(n))
-            print(prog.obj.name, 'HP:', int(prog.obj.bar(prog.multi.target)))
-            print(prog.obj.name, 'ratio:', int(r * 100), '%')
-            print()
-
-            if count >= 100:
-                result = False
-
-        print(count, 'times')
-        print()
-
-
-    def test03_2(self):
-        """一回のProgress.next()の調査"""
-        
-        m = Multi.master['Battle']
-        p = m.target
-        prog = Progress(m, self.c1, self.c2)
-
-        print(self.c1.name, 'WALL:', int(self.c1.point(p) * p.wall()))
-        print(self.c2.name, 'MAX HP:', int(self.c2.bar(p)))
-        print()
-
-        n = prog.compare()
+        n = self.p1.compare(self.c1, self.c2)
         if n < 0:
             n = 0
-        r = prog.change(-1 * n)
-        b = prog.next(r)
+        r = self.p1.fluctuate(self.c2, -1 * n)
+        b = self.p1.next(r)
 
-        print(prog.multi.name, 'damage:',  int(n))
-        print(prog.obj.name, 'HP:', int(prog.obj.bar(prog.multi.target)))
-        print(prog.obj.name, 'ratio:', int(r * 100), '%')
+        print(self.p1.name, 'damage:',  int(n))
+        print(self.c2.name, 'HP:', int(self.c2.bar(self.p1.target)))
+        print(self.c2.name, 'ratio:', int(r * 100), '%')
         print('result:', b)
         print()
+    
+    def test04(self):
+        pass
 
 
 Test().test01(10)
 #Test().test02(1)
-Test().test03_1()
-#Test().test03_2()
+Test().test03()
