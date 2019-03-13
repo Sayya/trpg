@@ -108,15 +108,18 @@ class Process:
         
         return offence - defence
 
-    def fluctuate(self, sbj, obj):
+    def fluctuate(self, obj, n):
+        """ n: self.compare() の戻り値 """
+        obj.fluctuate(self.target, n)
+        return obj.p_ratio[self.target.name]
+
+    def next(self, r):
         """
+        r: self.fluctuate() の戻り値
         1. 比較し結果を得る
         2. 結果をもとにパラメータを変動させる
         3. パラメータの変動の結果、終了条件に適合すれば結果処理をする
         """
-        n = self.compare(sbj, obj)
-        obj.fluctuate(self.target, n)
-        r = obj.p_ratio[self.target.name]
         if r <= 0:
             return False
         else:
@@ -130,12 +133,8 @@ class Role:
 
 class Select:
 
-    def __init__(self):
-        pass
-        
-    def focus(self, name1, name2):
-        self.sbj = Role.master[name1]
-        self.obj = Role.master[name2]
+    def __init__(self, dic):
+        self.roles = dic
 
 class Product:
     master = dict()
@@ -165,21 +164,12 @@ class Event:
     def __init__(self, name, dic, deed, noend):
         self.name = name
         self.route = dic
-        
         self.deed = deed
-        
-        self.select = Select()
         self.noend = noend
-        
-        self.next = self
         Event.master[self.name] = self
-        
-    def occur(self):
-        self.select.focus()
-        n = self.deed(self.select.sbj, self.select.obj)
-        self.next = self.routing(n)
     
-    def routing(self, n):
+    def next(self):
+        n = self.deed()
         for i in sorted(self.route.keys()):
             if n < self.route[i]:
                 return Event.master[i]
@@ -191,5 +181,4 @@ class Game:
     
     def start(self):
         while self.event.noend:
-            self.event.deed()
             self.event = self.event.next()
