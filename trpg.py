@@ -165,11 +165,17 @@ class Event:
         self.name = name
         self.route = dic
         self.deed = deed
+        select
         self.noend = noend
         Event.master[self.name] = self
+        
+    def occur(self):
+        n = self.deed(self.select.sbj, self.select.obj)
+        self.select.select()
+        self.next(n)
     
-    def next(self):
-        n = self.deed()
+    def next(self, n):
+        #n = self.deed()
         for i in sorted(self.route.keys()):
             if n < self.route[i]:
                 return Event.master[i]
@@ -181,4 +187,5 @@ class Game:
     
     def start(self):
         while self.event.noend:
+            self.event.deed()
             self.event = self.event.next()
