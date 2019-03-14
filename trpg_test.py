@@ -1,7 +1,10 @@
-from trpg import Dice, Param, Thing, Process, Event, Game
+from trpg import Dice, Param, Thing, Process, Role, Event, Game
 
 class Test:
     def __init__(self):
+        Param('', dict(), Dice(0, 0))
+        Param('WAY', {'WAY': 1}, Dice(1, 2))
+
         Param('POW', {'POW': 1}, Dice(0,0))
         Param('SEN', {'SEN': 1}, Dice(0,0))
         Param('INT', {'INT': 1}, Dice(0,0))
@@ -13,138 +16,60 @@ class Test:
         Param('Punch_Offence', {'Punch_Offence': 0.1, 'Limb': 0.5}, Dice(2,6))
         Param('Punch_Deffence', {'Punch_Deffence': 1, 'Body': 0.5}, Dice(2,6))
 
-        self.p1 = Process('Battle',
-            Param.master['Punch'],
-            Param.master['Punch_Offence'],
-            Param.master['Punch_Deffence'],
-        )
+        Thing('MOMO', {'POW': 10, 'SEN': 10, 'INT': 10, 'Limb': 10, 'Body': 10,
+                       'Punch': 10, 'Punch_Offence': 10, 'Punch_Deffence': 10,}, list())
+        Thing('INU',  {'POW': 10, 'SEN': 12, 'INT':  5, 'Limb':  5, 'Body': 15,
+                       'Punch': 10, 'Punch_Offence': 10, 'Punch_Deffence': 10,}, list())
+        Thing('KIJI', {'POW': 12, 'SEN': 15, 'INT':  3, 'Limb': 10, 'Body': 15,
+                       'Punch': 10, 'Punch_Offence': 10, 'Punch_Deffence': 10,}, list())
+        Thing('SARU', {'POW':  5, 'SEN':  5, 'INT': 20, 'Limb': 10, 'Body': 15,
+                       'Punch': 10, 'Punch_Offence': 10, 'Punch_Deffence': 10,}, list())
 
         d26 = Dice(2, 6).dice
-        self.c1 = Thing(
-            'YUSHA',
-            {
-                'POW': d26(),
-                'SEN': d26(),
-                'INT': d26(),
+        Thing('ONI_A', {'POW': d26(), 'SEN': d26(), 'INT': d26(), 'Limb': d26(),
+                        'Punch': d26(), 'Punch_Offence': d26(), 'Punch_Deffence': d26(),}, list())
+        Thing('ONI_B', {'POW': d26(), 'SEN': d26(), 'INT': d26(), 'Limb': d26(),
+                        'Punch': d26(), 'Punch_Offence': d26(), 'Punch_Deffence': d26(),}, list())
+        Thing('ONIGA', {'POW': 30, 'SEN': 5, 'INT': 5, 'Limb': 5, 'Body': 10,
+                        'Punch': d26(), 'Punch_Offence': d26(), 'Punch_Deffence': d26(),}, list())
+        
+        Thing('WAY', {'WAY': 1,}, list())
 
-                'Limb': d26(),
-                'Body': d26(),
+        Role('TARO', Thing.master)
 
-                'Punch': d26(),
-                'Punch_Offence': d26(),
-                'Punch_Deffence': d26(),
-            },
-            dict(),
-        )
-        self.c2 = Thing(
-            'DRAGO',
-            {
-                'POW': d26(),
-                'SEN': d26(),
-                'INT': d26(),
+        self.p1 = Process('Battle', Param.master['Punch'], Param.master['Punch_Offence'], Param.master['Punch_Deffence'])
+        self.p2 = Process('OneOfTwo', Param.master['WAY'], Param.master[''], Param.master[''])
 
-                'Limb': d26(),
-                'Body': d26(),
-
-                'Punch': d26(),
-                'Punch_Offence': d26(),
-                'Punch_Deffence': d26(),
-            },
-            dict(),
-        )
-
-        self.e1 = Event(
-            'Event1',
-            {
-                'Event2': 3,
-                'Event3': 5,
-            },
-            self.p1.next,
-            True,
-        )
-
-        self.e1 = Event(
-            'Event2',
-            {
-                'Event1': 2,
-                'Event3': 5,
-            },
-            print,
-            True,
-        )
-
-        self.e1 = Event(
-            'Event3',
-            dict(),
-            print,
-            False,
-        )
+        Event('E1', {'E2': (0, 0),}, self.p1.fluctuate, True,
+                '君は鬼ヶ島に来ている\n鬼が現れた')
+        Event('E2', {'E3': (0, 0),}, self.p1.fluctuate, True,
+                '君は鬼ヶ島に来ている\nさらに鬼が現れた')
+        Event('E3', {'E1': (1, 0), 'E4': (2, 0),}, self.p2.compare, True,
+                '何かが近づいてくる！？')
+        Event('E4', {'E5': (0, 0),}, self.p1.fluctuate, True,
+                '鬼の王が現れた')
+        Event('E5', {'E6': (1, 0),}, self.p1.xchange, True,
+                '鬼の王は滅ぼされた\n故郷に平和が戻った')
+        Event('E6', dict(), self.p1.xchange, False, '')
 
     def test01(self, times):
         """times回数の平均Param値を算出"""
-
-        result = dict()
-        for i in Param.master:
-            result[i] = list()
-
-        for i in range(times):
-            for j in Param.master:
-                answer = int(self.c1.point(Param.master[j]) * Param.master[j].dice())
-                result[j].append(answer)
-
-        print(self.c1.name, times, 'times Avarage', end=' ')
-        for i in Param.master:
-            if len(Param.master[i].weight) != 0:
-                print('- {0} : {1:3}'.format(i, int(sum(result[i]) / len(result[i]))), end=' ')
-        print()
-
-        print(self.c1.name, end=' ')
-        for i in Param.master:
-            if len(Param.master[i].weight) != 0:
-                if i in self.c1.params:
-                   print('- {0} : {1:3}'.format(i, self.c1.params[i]), end=' ')
-        print()
-
-        print(self.c2.name, end=' ')
-        for i in Param.master:
-            if len(Param.master[i].weight) != 0:
-                if i in self.c2.params:
-                   print('- {0} : {1:3}'.format(i, self.c2.params[i]), end=' ')
-        print()
-        print()
-
+        pass
 
     def test02(self, times):
         """times回数Process.compare()を出力する"""
-        m = Process.master['Battle']
-        
-        for i in range(times):
-            print('This [{0}]Game Result :'.format('Battle'), int(m.compare(self.c1, self.c2)))
-        print()
+        pass
 
     def test03(self):
         """一回のProcess.next()の調査"""
-
-        print(self.c1.name, 'WALL:', int(self.c1.point(self.p1.target)))
-        print(self.c2.name, 'MAX HP:', int(self.c2.bar(self.p1.target)))
-        print()
-
-        n = self.p1.compare(self.c1, self.c2)
-        if n < 0:
-            n = 0
-        r = self.p1.fluctuate(self.c2, -1 * n)
-        b = self.p1.next(r)
-
-        print(self.p1.name, 'damage:',  int(n))
-        print(self.c2.name, 'HP:', int(self.c2.bar(self.p1.target)))
-        print(self.c2.name, 'ratio:', int(r * 100), '%')
-        print('result:', b)
-        print()
+        pass
     
     def test04(self):
-        pass
+        """お逃しません"""
+        print(Role.master['TARO'].propts)
+        Game(Event.master['E1']).start()
 
-
-Test().test01(10)
+#Test().test01(10)
 #Test().test02(1)
-Test().test03()
+#Test().test03()
+Test().test04()

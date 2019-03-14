@@ -21,7 +21,10 @@ class Param:
 
     def __init__(self, name, dic, dice):
         self.name = name
+
+        # {"name": int}
         self.weight = dic
+
         Param.master[self.name] = self
 
         # pointA: 重み(0 <= n <= 1)とパラメータ(params[i])の数値を掛けたものの和
@@ -46,15 +49,19 @@ class Thing:
 
     def __init__(self, name, dic, lis):
         self.name = name
+
+        # {"name": Param()}
         self.params = dic
 
+        # [Thing()]
         self.propts = lis
         self.f_compare = list()
         self.f_xchange = list()
 
         self.pid = Thing.pid
-        Thing.master[Thing.pid] = self
         Thing.pid += 1
+
+        Thing.master[self.name] = self
 
         # パーセンテージ（HPなど）
         self.p_ratio = dict()
@@ -68,9 +75,11 @@ class Thing:
 
     def fluctuate(self, param, n):
         self.p_ratio[param.name] = (self.bar(param) + n) / self.siz(param)
+        return self.p_ratio[param.name]
 
     def change(self, param, n):
         self.params[param.name] += n
+        return self.params[param.name]
 
 class Process:
     """ Thingの属性（パラメータ）になる② """
@@ -86,7 +95,7 @@ class Process:
         Process.master[self.name] = self
     
     def vchange(self, sbj, obj):
-        obj.change(self.target, sbj.point(self.target))
+        return obj.change(self.target, sbj.point(self.target))
 
     # あるパラメータについて２つのThingにおける交換
     def xchange(self, sbj, obj):
@@ -98,51 +107,81 @@ class Process:
         sbj.f_xchange = sbj_propts_nonget.extend(obj_propts_target)
         obj.f_xchange = obj_propts_nonget.extend(sbj_propts_target)
 
+        return 1
+
     # あるパラメータについて２つのThingにおける差
     def compare(self, sbj, obj):
-        sbj_propts_sum = sum(sbj.f_compare[i].point(self.target) for i in sbj.f_compare.keys() if self.target.name in sbj.f_compare[i].params) + 1
-        obj_propts_sum = sum(obj.f_compare[i].point(self.target) for i in obj.f_compare.keys() if self.target.name in sbj.f_compare[i].params) + 1
+        sbj_propts_sum = sum(i.point(self.target) for i in sbj.f_compare if self.target.name in i.params) + 1
+        obj_propts_sum = sum(i.point(self.target) for i in obj.f_compare if self.target.name in i.params) + 1
         
         offence = sbj.point(self.target) * sbj_propts_sum * self.target.dice() + sbj.point(self.sbj_param)
         defence = obj.point(self.target) * obj_propts_sum * self.target.dice() + obj.point(self.obj_param)
         
         return offence - defence
 
-    def fluctuate(self, obj, n):
-        """ n: self.compare() の戻り値 """
-        obj.fluctuate(self.target, n)
-        return obj.p_ratio[self.target.name]
-
-    def next(self, r):
+    def fluctuate(self, sbj, obj):
         """
-        r: self.fluctuate() の戻り値
         1. 比較し結果を得る
         2. 結果をもとにパラメータを変動させる
         3. パラメータの変動の結果、終了条件に適合すれば結果処理をする
         """
-        if r <= 0:
-            return False
+        n = self.compare(sbj, obj)
+
+        if n <= 0:
+            r = 0
         else:
-            return True
+            r = obj.fluctuate(self.target, -1 * n)
+
+        if r <= 0:
+            return 0
+        else:
+            return 1
 
 class Role:
     """ 権限の単位、TRPGにおけるPL、PCのPLにあたる """
+    master = dict()
+
     def __init__(self, name, dic):
         self.name = name
+
+        # {"name": Thing()}
         self.propts = dic
+        
+        Role.master[self.name] = self
 
 class Select:
+    def __init__(self, text):
+        self.text = text
+        self.sbj = Thing('', dict(), list())
+        self.obj = Thing('', dict(), list())
+        
+    def focus(self):
+        print(self.text)
 
-    def __init__(self, dic):
-        self.roles = dic
+        print('name1 > ', end='')
+        name1 = input()
+        print('name2 > ', end='')
+        name2 = input()
+
+        nlis1 = name1.split('.')
+        nlis2 = name2.split('.')
+
+        if len(nlis1) == 2:
+            self.sbj = Role.master[nlis1[0]].propts[nlis1[1]]
+        elif len(nlis1) == 3:
+            self.sbj = Role.master[nlis1[0]].propts[nlis1[1]].propts[nlis1[2]]
+
+        if len(nlis2) == 2:
+            self.obj = Role.master[nlis2[0]].propts[nlis2[1]]
+        elif len(nlis2) == 3:
+            self.obj = Role.master[nlis2[0]].propts[nlis2[1]].propts[nlis2[2]]
 
 class Product:
     master = dict()
 
     """ イベントの設計 """
-    def __init__(self, name, prog, lis):
+    def __init__(self, name):
         self.name = name
-        self.event = lis
         Product.master[self.name] = self
 
 class Event:
@@ -160,18 +199,32 @@ class Event:
     """
     master = dict()
 
-    """ ルーティングの設計 """
-    def __init__(self, name, dic, deed, noend):
+    def __init__(self, name, dic, deed, noend, text):
         self.name = name
+
+        # {"name": (min, max)}
         self.route = dic
+        
+        # Process.(vchange|xchange|compare|fluctuate)
         self.deed = deed
+        
+        self.select = Select(text)
+
+        # Boolean
         self.noend = noend
+        
+        self.next = self
         Event.master[self.name] = self
+        
+    def occur(self):
+        self.select.focus()
+        n = self.deed(self.select.sbj, self.select.obj)
+        self.next = self.routing(n)
     
-    def next(self):
-        n = self.deed()
+    def routing(self, n):
+        """ ルーティングの設計 """
         for i in sorted(self.route.keys()):
-            if n < self.route[i]:
+            if self.route[i][0] <= n < self.route[i][1] or self.route[i][0] == n:
                 return Event.master[i]
         else:
             return Event.master[sorted(self.route.keys())[0]]
@@ -181,4 +234,5 @@ class Game:
     
     def start(self):
         while self.event.noend:
-            self.event = self.event.next()
+            self.event.occur()
+            self.event = self.event.next
