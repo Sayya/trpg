@@ -1,4 +1,4 @@
-from trpg import Dice, Param, Thing, Process, Role, Event, Game
+from trpg import Dice, Param, Thing, Process, Role, Event, Route, Game
 
 class Test:
     def __init__(self):
@@ -16,13 +16,13 @@ class Test:
         Param('Punch_Offence', {'Punch_Offence': 0.1, 'Limb': 0.5}, Dice(2,6))
         Param('Punch_Deffence', {'Punch_Deffence': 1, 'Body': 0.5}, Dice(2,6))
 
-        Thing('MOMO', {'POW': 10, 'SEN': 10, 'INT': 10, 'Limb': 10, 'Body': 10,
+        Thing('momo', {'POW': 10, 'SEN': 10, 'INT': 10, 'Limb': 10, 'Body': 10,
                        'Punch': 10, 'Punch_Offence': 10, 'Punch_Deffence': 10,}, list())
-        Thing('INU',  {'POW': 10, 'SEN': 12, 'INT':  5, 'Limb':  5, 'Body': 15,
+        Thing('inu',  {'POW': 10, 'SEN': 12, 'INT':  5, 'Limb':  5, 'Body': 15,
                        'Punch': 10, 'Punch_Offence': 10, 'Punch_Deffence': 10,}, list())
-        Thing('KIJI', {'POW': 12, 'SEN': 15, 'INT':  3, 'Limb': 10, 'Body': 15,
+        Thing('kiji', {'POW': 12, 'SEN': 15, 'INT':  3, 'Limb': 10, 'Body': 15,
                        'Punch': 10, 'Punch_Offence': 10, 'Punch_Deffence': 10,}, list())
-        Thing('SARU', {'POW':  5, 'SEN':  5, 'INT': 20, 'Limb': 10, 'Body': 15,
+        Thing('saru', {'POW':  5, 'SEN':  5, 'INT': 20, 'Limb': 10, 'Body': 15,
                        'Punch': 10, 'Punch_Offence': 10, 'Punch_Deffence': 10,}, list())
 
         d26 = Dice(2, 6).dice
@@ -32,25 +32,25 @@ class Test:
                         'Punch': d26(), 'Punch_Offence': d26(), 'Punch_Deffence': d26(),}, list())
         Thing('ONIGA', {'POW': 30, 'SEN': 5, 'INT': 5, 'Limb': 5, 'Body': 10,
                         'Punch': d26(), 'Punch_Offence': d26(), 'Punch_Deffence': d26(),}, list())
-        
-        Thing('WAY', {'WAY': 1,}, list())
 
+        Process('', Param.master[''], Param.master[''], Param.master[''])
+        Process('Battle', Param.master['Punch'], Param.master['Punch_Offence'], Param.master['Punch_Deffence'])
+        Process('OneOfTwo', Param.master['WAY'], Param.master[''], Param.master[''])
+
+        Role('', dict())
         Role('TARO', Thing.master)
 
-        self.p1 = Process('Battle', Param.master['Punch'], Param.master['Punch_Offence'], Param.master['Punch_Deffence'])
-        self.p2 = Process('OneOfTwo', Param.master['WAY'], Param.master[''], Param.master[''])
+        Event('E1', Role.master['TARO'], (None,Thing.master['ONI_A']), Process.master['Battle'].fluctuate, 1, '君は鬼ヶ島に来ている\n鬼が現れた')
+        Event('E2', Role.master['TARO'], (None,Thing.master['ONI_B']), Process.master['Battle'].fluctuate, 1, '君は鬼ヶ島に来ている\nさらに鬼が現れた')
+        Event('E3', Role.master[''], (None,None), Process.master['OneOfTwo'].dice, 1, '何かが近づいてくる！？')
+        Event('E4', Role.master['TARO'], (None,Thing.master['ONIGA']), Process.master['Battle'].fluctuate, 1, '鬼の王が現れた')
+        Event('E5', Role.master[''], (None,None), Process.master[''].point, 1, '鬼の王は滅ぼされた\n故郷に平和が戻った')
 
-        Event('E1', {'E2': (0, 0),}, self.p1.fluctuate, True,
-                '君は鬼ヶ島に来ている\n鬼が現れた')
-        Event('E2', {'E3': (0, 0),}, self.p1.fluctuate, True,
-                '君は鬼ヶ島に来ている\nさらに鬼が現れた')
-        Event('E3', {'E1': (1, 0), 'E4': (2, 0),}, self.p2.compare, True,
-                '何かが近づいてくる！？')
-        Event('E4', {'E5': (0, 0),}, self.p1.fluctuate, True,
-                '鬼の王が現れた')
-        Event('E5', {'E6': (1, 0),}, self.p1.xchange, True,
-                '鬼の王は滅ぼされた\n故郷に平和が戻った')
-        Event('E6', dict(), self.p1.xchange, False, '')
+        Route('R1', {'R2': (0, 0),}, True, Event.master['E1'])
+        Route('R2', {'R3': (0, 0),}, True, Event.master['E2'])
+        Route('R3', {'R1': (1, 0), 'R4': (2, 0),}, True, Event.master['E3'])
+        Route('R4', {'R5': (0, 0),}, True, Event.master['E4'])
+        Route('R5', dict(), False, Event.master['E5'])
 
     def test01(self, times):
         """times回数の平均Param値を算出"""
@@ -67,7 +67,7 @@ class Test:
     def test04(self):
         """お逃しません"""
         print(Role.master['TARO'].propts)
-        Game(Event.master['E1']).start()
+        Game(Route.master['R1']).start()
 
 #Test().test01(10)
 #Test().test02(1)

@@ -93,6 +93,16 @@ class Process:
         self.obj_param = param2
 
         Process.master[self.name] = self
+
+        # Event.deed の設定用
+        self.point = lambda sbj, obj: obj.point(self.target)
+        self.siz = lambda sbj, obj: obj.siz(self.target)
+        self.bar = lambda sbj, obj: obj.bar(self.target)
+
+        self.dice = lambda sbj, obj: self.target.dice()
+        self.ceil = lambda sbj, obj: self.target.ceil()
+        self.wall = lambda sbj, obj: self.target.wall()
+        self.flor = lambda sbj, obj: self.target.flor()
     
     def vchange(self, sbj, obj):
         return obj.change(self.target, sbj.point(self.target))
@@ -117,6 +127,7 @@ class Process:
         offence = sbj.point(self.target) * sbj_propts_sum * self.target.dice() + sbj.point(self.sbj_param)
         defence = obj.point(self.target) * obj_propts_sum * self.target.dice() + obj.point(self.obj_param)
         
+        print(sbj.name, 'の', self.target.name, 'は', int(offence - defence))
         return offence - defence
 
     def fluctuate(self, sbj, obj):
@@ -131,8 +142,10 @@ class Process:
             r = 0
         else:
             r = obj.fluctuate(self.target, -1 * n)
+            print(obj.name, 'の', self.target.name, 'は', int(r * 100), 'になった')
 
         if r <= 0:
+            print(obj.name, 'はもう', self.target.name, 'できない')
             return 0
         else:
             return 1
@@ -149,44 +162,47 @@ class Role:
         
         Role.master[self.name] = self
 
-class Select:
-    def __init__(self, text):
-        self.text = text
-        self.sbj = Thing('', dict(), list())
-        self.obj = Thing('', dict(), list())
-        
-    def focus(self):
-        print(self.text)
-
-        print('name1 > ', end='')
-        name1 = input()
-        print('name2 > ', end='')
-        name2 = input()
-
-        nlis1 = name1.split('.')
-        nlis2 = name2.split('.')
-
-        if len(nlis1) == 2:
-            self.sbj = Role.master[nlis1[0]].propts[nlis1[1]]
-        elif len(nlis1) == 3:
-            self.sbj = Role.master[nlis1[0]].propts[nlis1[1]].propts[nlis1[2]]
-
-        if len(nlis2) == 2:
-            self.obj = Role.master[nlis2[0]].propts[nlis2[1]]
-        elif len(nlis2) == 3:
-            self.obj = Role.master[nlis2[0]].propts[nlis2[1]].propts[nlis2[2]]
-
-class Product:
+class Event:
+    """ イベント """
     master = dict()
 
-    """ イベントの設計 """
-    def __init__(self, name):
+    def __init__(self, name, role, dhings, deed, n, text):
         self.name = name
-        Product.master[self.name] = self
+        self.role = role
 
-class Event:
+        self.sbj = Thing('', dict(), list()) if dhings[0] == None else dhings[0]
+        self.obj = Thing('', dict(), list()) if dhings[1] == None else dhings[1]
+        
+        # Process のメソッド
+        self.do = lambda: deed(self.sbj, self.obj)
+        self.n = n
+
+        self.text = text
+
+        Event.master[self.name] = self
+        
+    def focus(self):
+        if self.text != '':
+            print(self.text)
+
+        if self.n == 1 or self.n == 3:
+            self.sbj = self.dialg(self.role.name, self.role)
+        
+        if self.n == 2 or self.n == 3:
+            self.obj = self.dialg(self.role.name, self.role)
+
+    def dialg(self, prompt, role):
+        print(prompt, '> ', end='')
+        nam = input()
+        nli = nam.split('.')
+        if len(nli) == 1 and nli[0] != '':
+            return role.propts[nli[0]]
+        elif len(nli) == 2:
+            return role.propts[nli[0]].propts[nli[1]]
+
+class Route:
     """
-    イベント処理
+    ルーティング処理
     1. テキストによる状況説明
     2. 以下のうち一つか複数
     ・Processの繰り返し、中断（compare, fluctuate, next）
@@ -199,40 +215,40 @@ class Event:
     """
     master = dict()
 
-    def __init__(self, name, dic, deed, noend, text):
+    def __init__(self, name, dic, noend, event):
         self.name = name
 
         # {"name": (min, max)}
         self.route = dic
-        
-        # Process.(vchange|xchange|compare|fluctuate)
-        self.deed = deed
-        
-        self.select = Select(text)
 
         # Boolean
         self.noend = noend
         
+        self.event = event
+        
         self.next = self
-        Event.master[self.name] = self
+        Route.master[self.name] = self
         
     def occur(self):
-        self.select.focus()
-        n = self.deed(self.select.sbj, self.select.obj)
+        self.event.focus()
+        n = self.event.do()
         self.next = self.routing(n)
     
     def routing(self, n):
         """ ルーティングの設計 """
         for i in sorted(self.route.keys()):
             if self.route[i][0] <= n < self.route[i][1] or self.route[i][0] == n:
-                return Event.master[i]
+                return Route.master[i]
         else:
-            return Event.master[sorted(self.route.keys())[0]]
+            return self
+
 class Game:
-    def __init__(self, event):
-        self.event = event
+    def __init__(self, route):
+        self.route = route
     
     def start(self):
-        while self.event.noend:
-            self.event.occur()
-            self.event = self.event.next
+        endflg = True
+        while endflg:
+            endflg = self.route.noend
+            self.route.occur()
+            self.route = self.route.next
