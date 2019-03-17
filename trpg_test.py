@@ -1,8 +1,7 @@
-from trpg import Dice, Param, Thing, Process, Role, Event, Route, Game
+from trpg import Master, Dice, Param, Thing, Process, Role, Event, Route, Game
 
 class Test:
     def __init__(self):
-        Param('', dict(), Dice(0, 0))
         Param('WAY', {'WAY': 1}, Dice(1, 2))
 
         Param('POW', {'POW': 1}, Dice(0,0))
@@ -33,18 +32,16 @@ class Test:
         Thing('ONIGA', {'POW': 30, 'SEN': 5, 'INT': 5, 'Limb': 5, 'Body': 10,
                         'Punch': d26(), 'Punch_Offence': d26(), 'Punch_Deffence': d26(),}, list())
 
-        Process('', Param.master[''], Param.master[''], Param.master[''])
         Process('Battle', Param.master['Punch'], Param.master['Punch_Offence'], Param.master['Punch_Deffence'])
         Process('OneOfTwo', Param.master['WAY'], Param.master[''], Param.master[''])
 
-        Role('', dict())
-        Role('TARO', Thing.master)
+        Event('E1', (None,Thing.master['ONI_A']), Process.master['Battle'].fluctuate, 1, '君は鬼ヶ島に来ている\n鬼が現れた')
+        Event('E2', (None,Thing.master['ONI_B']), Process.master['Battle'].fluctuate, 1, '君は鬼ヶ島に来ている\nさらに鬼が現れた')
+        Event('E3', (None,None), Process.master['OneOfTwo'].dice, 1, '何かが近づいてくる！？')
+        Event('E4', (None,Thing.master['ONIGA']), Process.master['Battle'].fluctuate, 1, '鬼の王が現れた')
+        Event('E5', (None,None), Process.master[''].point, 1, '鬼の王は滅ぼされた\n故郷に平和が戻った')
 
-        Event('E1', Role.master['TARO'], (None,Thing.master['ONI_A']), Process.master['Battle'].fluctuate, 1, '君は鬼ヶ島に来ている\n鬼が現れた')
-        Event('E2', Role.master['TARO'], (None,Thing.master['ONI_B']), Process.master['Battle'].fluctuate, 1, '君は鬼ヶ島に来ている\nさらに鬼が現れた')
-        Event('E3', Role.master[''], (None,None), Process.master['OneOfTwo'].dice, 1, '何かが近づいてくる！？')
-        Event('E4', Role.master['TARO'], (None,Thing.master['ONIGA']), Process.master['Battle'].fluctuate, 1, '鬼の王が現れた')
-        Event('E5', Role.master[''], (None,None), Process.master[''].point, 1, '鬼の王は滅ぼされた\n故郷に平和が戻った')
+        Role('TARO', [Thing.master['momo'], Thing.master['inu'], Thing.master['kiji'], Thing.master['saru']], list())
 
         Route('R1', {'R2': (0, 0),}, True, Event.master['E1'])
         Route('R2', {'R3': (0, 0),}, True, Event.master['E2'])
