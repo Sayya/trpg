@@ -179,8 +179,8 @@ class Role(Master):
         # [Thing()] => {"name": Thing()}
         self.propts = {v.name: v for v in lis1}
 
-        # [Event()] => {"name": Event()}
-        self.events = {v.name: v for v in lis2}
+        # [Route()] => {"name": Route()}
+        self.routes = {v.name: v for v in lis2}
 
         self.thing = Thing.master['']
         self.items = list()
@@ -188,6 +188,7 @@ class Role(Master):
     def action(self):
         
         def focus():
+            print('IN {0}'.format(list(self.propts.keys())))
             print('[{0}]:{1}'.format(self.name, 'thing'), '> ', end='')
             nam = input()
             if nam in self.propts:
@@ -195,9 +196,13 @@ class Role(Master):
             else:
                 raise TrpgError('Role-{0}-はThing-{1}-を所有していません'.format(self.name, nam))
             
-            print('[{0}]:{1}'.format(self.name, 'propts'), '> ', end='')
-            nam = input()
-            self.items = nam.split(',')
+            if len(self.thing.propts) != 0:
+                print('IN {0}'.format(list(self.thing.propts.keys())))
+                print('[{0}]:{1}'.format(self.name, 'propts'), '> ', end='')
+                nam = input()
+                self.items = nam.split(',')
+            else:
+                raise TrpgError('Thing-{0}-は他のThingを所有していません'.format(self.thing.name))
 
         def on ():
             # 検証
@@ -230,20 +235,57 @@ class Role(Master):
                         self.thing.f_xchange.append(j)
                         self.thing.propts.remove(j)
         
+        actlist = ['on', 'off', 'choice']
+        actlist.extend(list(self.routes.keys()))
+        print('IN {0}'.format(actlist))
         print('[{0}]:{1}'.format(self.name, 'action'), '> ', end='')
         nam = input()
-        if nam == 'on':
-            focus()
-            on()
-        elif nam == 'off':
-            focus()
-            off()
-        elif nam == 'choice':
-            focus()
-            choice()
-        elif nam in [j.name for j in self.events]:
-            self.events[nam].focus()
-            self.events[nam].do()
+        try:
+            if nam == 'on':
+                focus()
+                on()
+            elif nam == 'off':
+                focus()
+                off()
+            elif nam == 'choice':
+                focus()
+                choice()
+            elif nam in self.routes.keys():
+                endflg = True
+                while endflg:
+                    endflg = self.routes[nam].noend
+                    self.routes[nam].occur()
+                    self.routes[nam] = self.routes[nam].next
+
+        except TrpgError as e:
+            print('MESSAGE:', e.value)
+
+    def dialg_thing(self, desc):
+        print('IN {0}'.format(list(self.propts.keys())))
+        print('[{0}]:{1}'.format(self.name, desc), '> ', end='')
+        nam = input()
+        nli = nam.split('.')
+
+        rslt = Thing.master['']
+
+        if 0 < len(nli) < 3 and nli[0] in self.propts:
+            if len(nli) == 1:
+                rslt = self.propts[nli[0]]
+            elif len(nli) == 2 and nli[1] in self.propts[nli[0]]:
+                rslt = self.propts[nli[0]].propts[nli[1]]
+        
+        return rslt
+
+    @classmethod
+    def dialog_role(self):
+        print('IN {0}'.format(list(Role.master.keys())[1:]))
+        print('[{0}]:{1}'.format('Game', 'role'), '> ', end='')
+
+        nam = input()
+        if nam != '' and nam in Role.master.keys():
+            return Role.master[nam]
+        else:
+            raise TrpgError('Role-{0}-は存在しません'.format(nam))
 
 class Event(Master):
     """ イベント """
@@ -251,64 +293,50 @@ class Event(Master):
     pid = 0
     role = None
 
-    def __init__(self, name, dhings, deed, n, text):
-        super().__init__(name, [None, None], lambda: 0, 0, '')
+    def __init__(self, name, defthings, deed, rolething, text):
+        """
+        m について
+        m = 0: 使用するRoleはEvent.role
+        m = 1: 使用するRoleをdialgでEvent.roleに設定
+        n について
+        n = 1: self.sbjのみdialg指定
+        n = 2: self.objのみdialg指定
+        n = 3: self.sbj, self.objどちらもdialg指定
+        n = 上記以外: デフォルトのdhingsを指定
+        """
+        super().__init__(name, (None, None), lambda: 0, (0, 0), '')
 
         if len(Thing.master) > 0:
-            if len(dhings) == 2:
-                self.sbj = dhings[0] if isinstance(dhings[0], Thing) else Thing.master['']
-                self.obj = dhings[1] if isinstance(dhings[1], Thing) else Thing.master['']
+            if len(defthings) == 2:
+                self.sbj = defthings[0] if isinstance(defthings[0], Thing) else Thing.master['']
+                self.obj = defthings[1] if isinstance(defthings[1], Thing) else Thing.master['']
             else:
-                raise TrpgError('引数-{0}-のリストサイズが２ではありません'.format('dhings'))
+                raise TrpgError('引数-{0}-のリストサイズが２ではありません'.format('defthings'))
         else:
             raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Thing.__name__))
         
         # Process のメソッド
         self.do = lambda: deed(self.sbj, self.obj)
-        self.n = n
+        self.role_f = rolething[0]
+        self.thing_f = rolething[1]
 
         self.text = text
         
     def focus(self):
-
-        def dialog_role():
-            if self.role == None:
-                print('[{0}]:{1}'.format('None', 'role'), '> ', end='')
-            else:
-                print('[{0}]:{1}'.format(self.role.name, 'role'), '> ', end='')
-
-            nam = input()
-            if nam != '' and nam in Role.master.keys():
-                self.role = Role.master[nam]
-            elif self.role == None:
-                raise TrpgError('Roleがセットされていません')
-
-        def dialg_thing(desc):
-            print('[{0}]:{1}'.format(self.role.name, desc), '> ', end='')
-            nam = input()
-            nli = nam.split('.')
-
-            rslt = Thing.master['']
-
-            if 0 < len(nli) < 3 and nli[0] in self.role.propts:
-                if len(nli) == 1:
-                    rslt = self.role.propts[nli[0]]
-                elif len(nli) == 2 and nli[1] in self.role.propts[nli[0]]:
-                    rslt = self.role.propts[nli[0]].propts[nli[1]]
-            
-            return rslt
-
         if self.text != '':
             print(self.text)
 
-        if self.n > 0:
-            dialog_role()
+        try:
+            if self.role_f == 1 or Event.role == None:
+                Event.role = Role.dialog_role()
 
-        if self.n == 1 or self.n == 3:
-            self.sbj = dialg_thing('sbj')
-        
-        if self.n == 2 or self.n == 3:
-            self.obj = dialg_thing('obj')
+            if self.thing_f == 1 or self.thing_f == 3:
+                self.sbj = Event.role.dialg_thing('sbj')
+            
+            if self.thing_f == 2 or self.thing_f == 3:
+                self.obj = Event.role.dialg_thing('obj')
+        except TrpgError as e:
+            print('MESSAGE:', e.value)
 
 class Route(Master):
     """
@@ -355,15 +383,13 @@ class Route(Master):
         self.next = routing(n)
 
 class Game:
-    def __init__(self, route):
-        self.route = route
+    def __init__(self, lis):
+
+        # [Role()]
+        self.roles = lis
     
     def start(self):
         endflg = True
         while endflg:
-            endflg = self.route.noend
-            self.route.occur()
-            self.route = self.route.next
-
-            for v in Role.master.values():
-                v.action()
+            for i in self.roles:
+                i.action()

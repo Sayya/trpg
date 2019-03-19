@@ -35,19 +35,21 @@ class Test:
         Process('Battle', Param.master['Punch'], Param.master['Punch_Offence'], Param.master['Punch_Deffence'])
         Process('OneOfTwo', Param.master['WAY'], Param.master[''], Param.master[''])
 
-        Event('E1', (None,Thing.master['ONI_A']), Process.master['Battle'].fluctuate, 1, '君は鬼ヶ島に来ている\n鬼が現れた')
-        Event('E2', (None,Thing.master['ONI_B']), Process.master['Battle'].fluctuate, 1, '君は鬼ヶ島に来ている\nさらに鬼が現れた')
-        Event('E3', (None,None), Process.master['OneOfTwo'].dice, 1, '何かが近づいてくる！？')
-        Event('E4', (None,Thing.master['ONIGA']), Process.master['Battle'].fluctuate, 1, '鬼の王が現れた')
-        Event('E5', (None,None), Process.master[''].point, 1, '鬼の王は滅ぼされた\n故郷に平和が戻った')
+        Event('E0', (None,None), Process.master[''].point, (1, 0), 'プレーヤを選んでください')
+        Event('E1', (None,Thing.master['ONI_A']), Process.master['Battle'].fluctuate, (0, 1), '君は鬼ヶ島に来ている\n鬼が現れた')
+        Event('E2', (None,Thing.master['ONI_B']), Process.master['Battle'].fluctuate, (0, 1), '君は鬼ヶ島に来ている\nさらに鬼が現れた')
+        Event('E3', (None,None), Process.master['OneOfTwo'].dice, (0, 0), '何かが近づいてくる！？')
+        Event('E4', (None,Thing.master['ONIGA']), Process.master['Battle'].fluctuate, (0, 1), '鬼の王が現れた')
+        Event('E5', (None,None), Process.master[''].point, (0, 0), '鬼の王は滅ぼされた\n故郷に平和が戻った')
 
-        Role('TARO', [Thing.master['momo'], Thing.master['inu'], Thing.master['kiji'], Thing.master['saru']], list())
-
+        Route('R0', {'R1': (0, 0),}, True, Event.master['E0'])
         Route('R1', {'R2': (0, 0),}, True, Event.master['E1'])
         Route('R2', {'R3': (0, 0),}, True, Event.master['E2'])
-        Route('R3', {'R1': (1, 0), 'R4': (2, 0),}, True, Event.master['E3'])
+        Route('R3', {'R1': (1, 0), 'R4': (2, 0),}, False, Event.master['E3'])
         Route('R4', {'R5': (0, 0),}, True, Event.master['E4'])
         Route('R5', dict(), False, Event.master['E5'])
+
+        Role('TARO', [Thing.master['momo'], Thing.master['inu'], Thing.master['kiji'], Thing.master['saru']], [Route.master['R0']])
 
     def test01(self, times):
         """times回数の平均Param値を算出"""
@@ -63,8 +65,7 @@ class Test:
     
     def test04(self):
         """お逃しません"""
-        print(Role.master['TARO'].propts)
-        Game(Route.master['R1']).start()
+        Game([Role.master['TARO']]).start()
 
 #Test().test01(10)
 #Test().test02(1)
