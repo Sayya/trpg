@@ -251,6 +251,8 @@ class Role(Master):
                 focus()
                 choice()
             elif nam in self.routes.keys():
+                Event.role = self
+                
                 endflg = True
                 while endflg:
                     endflg = self.routes[nam].noend
@@ -259,6 +261,13 @@ class Role(Master):
 
         except TrpgError as e:
             print('MESSAGE:', e.value)
+            
+    def order_by(self, param):
+        self.propts = dict(sorted(self.propts, key=lambda x: x.point(param)))
+        
+    def order_next(self):
+        for v in self.propts.values():
+            yield v
 
     def dialg_thing(self, desc):
         print('IN {0}'.format(list(self.propts.keys())))
@@ -304,7 +313,7 @@ class Event(Master):
         n = 3: self.sbj, self.objどちらもdialg指定
         n = 上記以外: デフォルトのdhingsを指定
         """
-        super().__init__(name, (None, None), lambda: 0, (0, 0), '')
+        super().__init__(name, (None, None), lambda: 0, (0, 0, 0), '')
 
         if len(Thing.master) > 0:
             if len(defthings) == 2:
@@ -318,8 +327,9 @@ class Event(Master):
         # Process のメソッド
         self.do = lambda: deed(self.sbj, self.obj)
         self.role_f = rolething[0]
-        self.thing_f = rolething[1]
-
+        self.sbj_f = rolething[1]
+        self.obj_f = rolething[2]
+        
         self.text = text
         
     def focus(self):
@@ -330,11 +340,15 @@ class Event(Master):
             if self.role_f == 1 or Event.role == None:
                 Event.role = Role.dialog_role()
 
-            if self.thing_f == 1 or self.thing_f == 3:
+            if self.sbj_f == 1:
                 self.sbj = Event.role.dialg_thing('sbj')
+            elif self.role_f == 2:
+                self.role.order_by('')
+                self.sbj = self.role.order_next()
             
-            if self.thing_f == 2 or self.thing_f == 3:
+            if self.obj_f == 1:
                 self.obj = Event.role.dialg_thing('obj')
+                
         except TrpgError as e:
             print('MESSAGE:', e.value)
 
