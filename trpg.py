@@ -251,7 +251,8 @@ class Role(Master):
                 focus()
                 choice()
             elif nam in self.routes.keys():
-                Event.role = self
+                Event.sbj_role = self
+                Event.obj_role = self
                 
                 endflg = True
                 while endflg:
@@ -300,7 +301,8 @@ class Event(Master):
     """ イベント """
     master = dict()
     pid = 0
-    role = None
+    sbj_role = None
+    obj_role = None
 
     def __init__(self, name, defthings, deed, rolething, text):
         """
@@ -313,7 +315,7 @@ class Event(Master):
         n = 3: self.sbj, self.objどちらもdialg指定
         n = 上記以外: デフォルトのdhingsを指定
         """
-        super().__init__(name, (None, None), lambda: 0, (0, 0, 0), '')
+        super().__init__(name, (None, None), (lambda: 0, Param.master['']), (0, 0, 0, 0), '')
 
         if len(Thing.master) > 0:
             if len(defthings) == 2:
@@ -325,10 +327,12 @@ class Event(Master):
             raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Thing.__name__))
         
         # Process のメソッド
-        self.do = lambda: deed(self.sbj, self.obj)
-        self.role_f = rolething[0]
+        self.do = lambda: deed[0](self.sbj, self.obj)
+        self.target = deed[1]
+        self.role1_f = rolething[0]
         self.sbj_f = rolething[1]
-        self.obj_f = rolething[2]
+        self.role2_f = rolething[2]
+        self.obj_f = rolething[3]
         
         self.text = text
         
@@ -337,17 +341,23 @@ class Event(Master):
             print(self.text)
 
         try:
-            if self.role_f == 1 or Event.role == None:
-                Event.role = Role.dialog_role()
+            if self.role1_f == 1 or Event.sbj_role == None:
+                Event.sbj_role = Role.dialog_role()
 
             if self.sbj_f == 1:
-                self.sbj = Event.role.dialg_thing('sbj')
-            elif self.role_f == 2:
-                self.role.order_by('')
-                self.sbj = self.role.order_next()
+                self.sbj = Event.sbj_role.dialg_thing('sbj')
+            elif self.sbj_f == 2:
+                Event.sbj_role.order_by(self.target)
+                self.sbj = Event.sbj_role.order_next()
+
+            if self.role2_f == 1 or Event.obj_role == None:
+                Event.obj_role = Role.dialog_role()
             
             if self.obj_f == 1:
-                self.obj = Event.role.dialg_thing('obj')
+                self.obj = Event.obj_role.dialg_thing('obj')
+            elif self.obj_f == 2:
+                Event.obj_role.order_by(self.target)
+                self.obj = Event.obj_role.order_next()
                 
         except TrpgError as e:
             print('MESSAGE:', e.value)

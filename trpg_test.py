@@ -35,12 +35,12 @@ class Test:
         Process('Battle', Param.master['Punch'], Param.master['Punch_Offence'], Param.master['Punch_Deffence'])
         Process('OneOfTwo', Param.master['WAY'], Param.master[''], Param.master[''])
 
-        Event('E0', (None,None), Process.master[''].point, (1, 0), 'プレーヤを選んでください')
-        Event('E1', (None,Thing.master['ONI_A']), Process.master['Battle'].fluctuate, (0, 1), '君は鬼ヶ島に来ている\n鬼が現れた')
-        Event('E2', (None,Thing.master['ONI_B']), Process.master['Battle'].fluctuate, (0, 1), '君は鬼ヶ島に来ている\nさらに鬼が現れた')
-        Event('E3', (None,None), Process.master['OneOfTwo'].dice, (0, 0), '何かが近づいてくる！？')
-        Event('E4', (None,Thing.master['ONIGA']), Process.master['Battle'].fluctuate, (0, 1), '鬼の王が現れた')
-        Event('E5', (None,None), Process.master[''].point, (0, 0), '鬼の王は滅ぼされた\n故郷に平和が戻った')
+        Event('E0', (None,None), (Process.master[''].point, Process.master[''].target), (0, 0, 0, 0), 'プレーヤを選んでください')
+        Event('E1', (None,Thing.master['ONI_A']), (Process.master['Battle'].fluctuate, Process.master['Battle'].target), (0, 1, 0, 0), '君は鬼ヶ島に来ている\n鬼が現れた')
+        Event('E2', (None,Thing.master['ONI_B']), (Process.master['Battle'].fluctuate, Process.master['Battle'].target), (0, 1, 0, 0), '君は鬼ヶ島に来ている\nさらに鬼が現れた')
+        Event('E3', (None,None), (Process.master['OneOfTwo'].dice, Process.master['OneOfTwo'].target), (0, 0, 0, 0), '何かが近づいてくる！？')
+        Event('E4', (None,Thing.master['ONIGA']), (Process.master['Battle'].fluctuate, Process.master['Battle'].target), (0, 1, 0, 0), '鬼の王が現れた')
+        Event('E5', (None,None), (Process.master[''].point, Process.master[''].target), (0, 0, 0, 0), '鬼の王は滅ぼされた\n故郷に平和が戻った')
 
         Route('R0', {'R1': (0, 0),}, True, Event.master['E0'])
         Route('R1', {'R2': (0, 0),}, True, Event.master['E1'])
