@@ -44,10 +44,10 @@ class Param(Master):
     """ Thingの属性（パラメータ）になる """
     master = dict()
     pid = 0
-    def __init__(self, name, dic, dice):
-        super().__init__(name, dict(), Dice(0, 0))
+    def __init__(self, name, dic=dict(), dice=Dice(0, 0)):
+        super().__init__(name)
 
-        # {"name": int}
+        # {Param().name: int}
         self.weight = dic
 
         # pointA: 重み(0 <= n <= 1)とパラメータ(params[i])の数値を掛けたものの和
@@ -64,19 +64,20 @@ class Param(Master):
         self.dice = dice.dice
         self.ceil = dice.ceil
         self.wall = dice.wall
+        self.flor = dice.flor
 
 class Thing(Master):
     """ 対象となるもの、オブジェクト """
     master = dict()
     pid = 0
-    def __init__(self, name, dic, lis):
-        super().__init__(name, dict(), list())
+    def __init__(self, name, dic=dict(), lis=list()):
+        super().__init__(name)
 
-        # {"name": Param()}
+        # {Param().name: Param()}
         self.params = dic
 
         # [Thing()]
-        self.propts = lis
+        self.propts = [Thing.master[i] for i in lis]
         self.f_compare = list()
         self.f_xchange = list()
 
@@ -102,18 +103,21 @@ class Process(Master):
     """ Thingの属性（パラメータ）になる② """
     master = dict()
     pid = 0
-    def __init__(self, name, param0, param1, param2):
-        if len(Param.master) > 0:
-            super().__init__(name, Param.master[''], Param.master[''], Param.master[''])
-        else:
-            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Param.__name__))
+    def __init__(self, name, param0='', deed='point', param1='', param2=''):
+        """
+        deed option:
+        - point, siz, bar
+        - dice, ceil, wall, flor
+        - vchange, xchange, compare, increase, decrease
+        """
+        super().__init__(name)
 
-        self.target = param0
+        self.target = Param.master[param0]
 
-        self.sbj_param = param1
-        self.obj_param = param2
+        self.sbj_param = Param.master[param1]
+        self.obj_param = Param.master[param2]
 
-        # Event.deed の設定用
+        # Event.deed の拡張
         self.point = lambda sbj, obj: obj.point(self.target)
         self.siz = lambda sbj, obj: obj.siz(self.target)
         self.bar = lambda sbj, obj: obj.bar(self.target)
@@ -122,6 +126,9 @@ class Process(Master):
         self.ceil = lambda sbj, obj: self.target.ceil()
         self.wall = lambda sbj, obj: self.target.wall()
         self.flor = lambda sbj, obj: self.target.flor()
+
+        # Event.deedの設定
+        self.deed = getattr(self, deed)
     
     def vchange(self, sbj, obj):
         return obj.change(self.target, sbj.point(self.target))
@@ -149,7 +156,7 @@ class Process(Master):
         print(sbj.name, 'の', self.target.name, 'は', int(offence - defence))
         return offence - defence
 
-    def fluctuate_inc(self, sbj, obj):
+    def increase(self, sbj, obj):
         """
         1. 比較し結果を得る
         2. 結果をもとにパラメータを変動させる
@@ -163,7 +170,12 @@ class Process(Master):
         r = obj.fluctuate(self.target, 1 * n)
         print(obj.name, 'の', self.target.name, 'は', int(r * 100), 'になった')
 
-    def fluctuate_dec(self, sbj, obj):
+        if r >= 1:
+            return 1
+        else:
+            return 0
+
+    def decrease(self, sbj, obj):
         """
         1. 比較し結果を得る
         2. 結果をもとにパラメータを変動させる
@@ -183,18 +195,121 @@ class Process(Master):
         else:
             return 1
 
+class Event(Master):
+    """ イベント """
+    master = dict()
+    pid = 0
+    role = None
+    sbj = None
+    obj = None
+
+    def __init__(self, name, procs='', rolething=(0, 1, 0), defthings=('',''), text=''):
+        """
+        m について
+        m = 0: 使用するRoleはEvent.role
+        m = 1: 使用するRoleをdialgでEvent.roleに設定
+        n について
+        n = 1: self.sbjのみdialg指定
+        n = 2: self.objのみdialg指定
+        n = 3: self.sbj, self.objどちらもdialg指定
+        n = 上記以外: デフォルトのdhingsを指定
+        """
+        super().__init__(name)
+        
+        if len(defthings) != 2:
+            raise TrpgError('引数-{0}-のリストサイズが２ではありません'.format('defthings'))
+
+        self.sbj = Thing.master[defthings[0]] if defthings[0] in Thing.master.keys() else Thing.master['']
+        self.obj = Thing.master[defthings[1]] if defthings[1] in Thing.master.keys() else Thing.master['']
+        
+        # Process のメソッド
+        self.do = lambda: Process.master[procs].deed(self.sbj, self.obj)
+        self.target = Process.master[procs].target
+        self.role_f = rolething[0]
+        self.sbj_f = rolething[1]
+        self.obj_f = rolething[2]
+        
+        self.text = text
+        
+    def focus(self):
+        if self.text != '':
+            print(self.text)
+
+        try:
+            if self.role_f == 1 or self.role_f == 3 or Event.role == None:
+                Event.role = Role.dialog_role()
+
+            if self.sbj_f == 1:
+                self.sbj = Event.role.dialg_thing('sbj')
+            elif self.sbj_f == 2:
+                Event.role.order_by(self.target)
+                self.sbj = Event.role.order_next()
+
+            if self.role_f == 2 or self.role_f == 3 or Event.role == None:
+                Event.role = Role.dialog_role()
+            
+            if self.obj_f == 1:
+                self.obj = Event.role.dialg_thing('obj')
+            elif self.obj_f == 2:
+                Event.role.order_by(self.target)
+                self.obj = Event.role.order_next()
+                
+        except TrpgError as e:
+            print('MESSAGE:', e.value)
+
+class Route(Master):
+    """
+    ルーティング処理
+    1. テキストによる状況説明
+    2. 以下のうち一つか複数
+    ・Processの繰り返し、中断（compare, fluctuate, next）
+    ・Thingsの比較（compare）
+    ・Thingの交換（xchange）
+    ・Thingのパラム変更（vchange）
+
+    ・生成（Product）
+    """
+    master = dict()
+    pid = 0
+    def __init__(self, name, event='', dic=dict(), noend=True):
+        super().__init__(name)
+
+        # {Route().name: (min, max)}
+        self.route = dic
+
+        # Boolean
+        self.noend = noend
+        
+        self.event = Event.master[event]
+        
+        self.next = self
+        
+    def occur(self):
+    
+        def routing(n):
+            """ ルーティングの設計 """
+            for i in sorted(self.route.keys()):
+                if self.route[i][0] <= n < self.route[i][1] or self.route[i][0] == n:
+                    return Route.master[i]
+            else:
+                return self
+
+        self.event.focus()
+        n = self.event.do()
+        self.next = routing(n)
+
 class Role(Master):
     """ 権限の単位、TRPGにおけるPL、PCのPLにあたる """
     master = dict()
     pid = 0
-    def __init__(self, name, lis1, lis2):
-        super().__init__(name, list(), list())
+    def __init__(self, name, lis1=list(), lis2=list()):
+        super().__init__(name)
 
-        # [Thing()] => {"name": Thing()}
-        self.propts = {v.name: v for v in lis1}
+        # [Thing().name] => {"name": Thing()}
+        self.propts = {v: Thing.master[v] for v in lis1}
 
-        # [Route()] => {"name": Route()}
-        self.routes = {v.name: v for v in lis2}
+        # [Route().name] => {"name": Route()}
+        self.routes = {v: Route.master[v] for v in lis2}
 
         self.thing = Thing.master['']
         self.items = list()
@@ -205,18 +320,18 @@ class Role(Master):
             print('IN {0}'.format(list(self.propts.keys())))
             print('[{0}]:{1}'.format(self.name, 'thing'), '> ', end='')
             nam = input()
-            if nam in self.propts:
-                self.thing = self.propts[nam]
-            else:
+            if nam not in self.propts:
                 raise TrpgError('Role-{0}-はThing-{1}-を所有していません'.format(self.name, nam))
             
-            if len(self.thing.propts) != 0:
-                print('IN {0}'.format(list(self.thing.propts.keys())))
-                print('[{0}]:{1}'.format(self.name, 'propts'), '> ', end='')
-                nam = input()
-                self.items = nam.split(',')
-            else:
+            self.thing = self.propts[nam]
+            
+            if len(self.thing.propts) == 0:
                 raise TrpgError('Thing-{0}-は他のThingを所有していません'.format(self.thing.name))
+            
+            print('IN {0}'.format(list(self.thing.propts.keys())))
+            print('[{0}]:{1}'.format(self.name, 'propts'), '> ', end='')
+            nam = input()
+            self.items = nam.split(',')
 
         def on ():
             # 検証
@@ -306,128 +421,49 @@ class Role(Master):
         print('[{0}]:{1}'.format('Game', 'role'), '> ', end='')
 
         nam = input()
-        if nam != '' and nam in Role.master.keys():
-            return Role.master[nam]
-        else:
+        if nam == '' or nam not in Role.master.keys():
             raise TrpgError('Role-{0}-は存在しません'.format(nam))
-
-class Event(Master):
-    """ イベント """
-    master = dict()
-    pid = 0
-    role = None
-    sbj = None
-    obj = None
-
-    def __init__(self, name, defthings, deed, rolething, text):
-        """
-        m について
-        m = 0: 使用するRoleはEvent.role
-        m = 1: 使用するRoleをdialgでEvent.roleに設定
-        n について
-        n = 1: self.sbjのみdialg指定
-        n = 2: self.objのみdialg指定
-        n = 3: self.sbj, self.objどちらもdialg指定
-        n = 上記以外: デフォルトのdhingsを指定
-        """
-        super().__init__(name, (None, None), (lambda: 0, Param.master['']), (0, 0, 0), '')
-
-        if len(Thing.master) > 0:
-            if len(defthings) == 2:
-                self.sbj = defthings[0] if isinstance(defthings[0], Thing) else Thing.master['']
-                self.obj = defthings[1] if isinstance(defthings[1], Thing) else Thing.master['']
-            else:
-                raise TrpgError('引数-{0}-のリストサイズが２ではありません'.format('defthings'))
-        else:
-            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Thing.__name__))
         
-        # Process のメソッド
-        self.do = lambda: deed[0](self.sbj, self.obj)
-        self.target = deed[1]
-        self.role_f = rolething[0]
-        self.sbj_f = rolething[1]
-        self.obj_f = rolething[2]
-        
-        self.text = text
-        
-    def focus(self):
-        if self.text != '':
-            print(self.text)
-
-        try:
-            if self.role_f == 1 or self.role_f == 3 or Event.role == None:
-                Event.role = Role.dialog_role()
-
-            if self.sbj_f == 1:
-                self.sbj = Event.role.dialg_thing('sbj')
-            elif self.sbj_f == 2:
-                Event.role.order_by(self.target)
-                self.sbj = Event.role.order_next()
-
-            if self.role_f == 2 or self.role_f == 3 or Event.role == None:
-                Event.role = Role.dialog_role()
-            
-            if self.obj_f == 1:
-                self.obj = Event.role.dialg_thing('obj')
-            elif self.obj_f == 2:
-                Event.role.order_by(self.target)
-                self.obj = Event.role.order_next()
-                
-        except TrpgError as e:
-            print('MESSAGE:', e.value)
-
-class Route(Master):
-    """
-    ルーティング処理
-    1. テキストによる状況説明
-    2. 以下のうち一つか複数
-    ・Processの繰り返し、中断（compare, fluctuate, next）
-    ・Thingsの比較（compare）
-    ・Thingの交換（xchange）
-    ・Thingのパラム変更（vchange）
-
-    ・生成（Product）
-    """
-    master = dict()
-    pid = 0
-    def __init__(self, name, dic, noend, event):
-        if len(Event.master) > 0:
-            super().__init__(name, dict(), True, Event.master[''])
-        else:
-            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Event.__name__))
-
-        # {"name": (min, max)}
-        self.route = dic
-
-        # Boolean
-        self.noend = noend
-        
-        self.event = event
-        
-        self.next = self
-        
-    def occur(self):
-    
-        def routing(n):
-            """ ルーティングの設計 """
-            for i in sorted(self.route.keys()):
-                if self.route[i][0] <= n < self.route[i][1] or self.route[i][0] == n:
-                    return Route.master[i]
-            else:
-                return self
-
-        self.event.focus()
-        n = self.event.do()
-        self.next = routing(n)
+        return Role.master[nam]
 
 class Game:
     def __init__(self, lis):
 
         # [Role()]
-        self.roles = lis
+        self.roles = [Role.master[v] for v in lis]
     
     def start(self):
         endflg = True
         while endflg:
             for i in self.roles:
                 i.action()
+    
+    def new_param(self, *args):
+        Param(*args)
+
+    def new_thing(self, *args):
+        Thing(*args)
+
+    def new_process(self, *args):
+        if len(Param.master) == 0:
+            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Param.__name__))
+        
+        Process(*args)
+
+    def new_event(self, *args):
+        if len(Process.master) == 0:
+            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Process.__name__))
+
+        if len(Thing.master) == 0:
+            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Thing.__name__))
+        
+        Event(*args)
+
+    def new_route(self, *args):
+        if len(Event.master) == 0:
+            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Event.__name__))
+        
+        Route(*args)
+
+    def new_role(self, *args):
+        Role(*args)
