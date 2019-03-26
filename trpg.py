@@ -19,12 +19,13 @@ class Master:
             self.cls.pid += 1
             self.cls('', *args)
         else:
+            self.pid = self.cls.pid
             self.cls.pid += 1
 
-        if self.name not in self.cls.master.keys():
-            self.cls.master[self.name] = self
-        else:
+        if self.name in self.cls.master.keys():
             raise TrpgError('すでに名前-{0}-のオブジェクト-{1}-は存在します'.format(self.name, self.cls.__name__))
+        
+        self.cls.master[self.name] = self
 
 class Dice:
     """ 2d6形式を表現できる乱数クラス """
@@ -50,7 +51,7 @@ class Param(Master):
         # {Param().name: int}
         self.weight = dic
 
-        # pointA: 重み(0 <= n <= 1)とパラメータ(params[i])の数値を掛けたものの和
+        # pointA: 重み(0 <= n <= 1)とパラメータ(Param.master[i])の数値を掛けたものの和
         self.pointA = lambda params: sum(Param.master[i].point(params) * self.weight[i] for i in self.weight.keys() if i != self.name)
         # pointB: 当クラスのパラメータ(params[self.name])の数値に重みを掛けた数値
         self.pointB = lambda params: params[self.name] * self.weight[self.name] if self.name in params else 0
@@ -75,6 +76,10 @@ class Thing(Master):
 
         # {Param().name: Param()}
         self.params = dic
+
+        for i in lis:
+            if i not in Thing.master.keys():
+                raise TrpgError('{0}オブジェクト-{1}-を先に生成してください'.format(Param.__name__, i))
 
         # [Thing()]
         self.propts = [Thing.master[i] for i in lis]
@@ -110,6 +115,9 @@ class Process(Master):
         - dice, ceil, wall, flor
         - vchange, xchange, compare, increase, decrease
         """
+        if len(Param.master) == 0:
+            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Param.__name__))
+        
         super().__init__(name)
 
         self.target = Param.master[param0]
@@ -117,24 +125,28 @@ class Process(Master):
         self.sbj_param = Param.master[param1]
         self.obj_param = Param.master[param2]
 
-        # Event.deed の拡張
-        self.point = lambda sbj, obj: obj.point(self.target)
-        self.siz = lambda sbj, obj: obj.siz(self.target)
-        self.bar = lambda sbj, obj: obj.bar(self.target)
-
-        self.dice = lambda sbj, obj: self.target.dice()
-        self.ceil = lambda sbj, obj: self.target.ceil()
-        self.wall = lambda sbj, obj: self.target.wall()
-        self.flor = lambda sbj, obj: self.target.flor()
-
         # Event.deedの設定
         self.deed = getattr(self, deed)
+
+        # Event.deed の拡張
+    def point(self, sbj, obj, n):
+        rtn= obj.point(self.target)
+        print('{0}\'s {1} point: {2}'.format(obj.name, self.target.name, rtn))
+        return rtn
+
+    def siz(self, sbj, obj, n): return obj.siz(self.target)
+    def bar(self, sbj, obj, n): return obj.bar(self.target)
+    def dice(self, sbj, obj, n): return self.target.dice()
+        
+    def ceil(self, sbj, obj, n): return self.target.ceil()
+    def wall(self, sbj, obj, n): return self.target.wall()
+    def flor(self, sbj, obj, n): return self.target.flor()
     
-    def vchange(self, sbj, obj):
+    def vchange(self, sbj, obj, n):
         return obj.change(self.target, sbj.point(self.target))
 
     # あるパラメータについて２つのThingにおける交換
-    def xchange(self, sbj, obj):
+    def xchange(self, sbj, obj, n):
         sbj_propts_target = [i for i in sbj.f_xchange if self.target.name in sbj.f_xchange[i].params]
         sbj_propts_nonget = [i for i in sbj.f_xchange if self.target.name not in sbj.f_xchange[i].params]
         obj_propts_target = [i for i in obj.f_xchange if self.target.name in obj.f_xchange[i].params]
@@ -146,7 +158,7 @@ class Process(Master):
         return 1
 
     # あるパラメータについて２つのThingにおける差
-    def compare(self, sbj, obj):
+    def compare(self, sbj, obj, n):
         sbj_propts_sum = sum(i.point(self.target) for i in sbj.f_compare if self.target.name in i.params) + 1
         obj_propts_sum = sum(i.point(self.target) for i in obj.f_compare if self.target.name in i.params) + 1
         
@@ -156,14 +168,12 @@ class Process(Master):
         print(sbj.name, 'の', self.target.name, 'は', int(offence - defence))
         return offence - defence
 
-    def increase(self, sbj, obj):
+    def increase(self, sbj, obj, n):
         """
         1. 比較し結果を得る
         2. 結果をもとにパラメータを変動させる
         3. パラメータの変動の結果、終了条件に適合すれば結果処理をする
         """
-        n = self.compare(sbj, obj)
-
         if n < 0:
             n = 0
         
@@ -175,14 +185,12 @@ class Process(Master):
         else:
             return 0
 
-    def decrease(self, sbj, obj):
+    def decrease(self, sbj, obj, n):
         """
         1. 比較し結果を得る
         2. 結果をもとにパラメータを変動させる
         3. パラメータの変動の結果、終了条件に適合すれば結果処理をする
         """
-        n = self.compare(sbj, obj)
-
         if n < 0:
             n = 0
         
@@ -214,16 +222,29 @@ class Event(Master):
         n = 3: self.sbj, self.objどちらもdialg指定
         n = 上記以外: デフォルトのdhingsを指定
         """
+        if len(Process.master) == 0:
+            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Process.__name__))
+
+        if len(Thing.master) == 0:
+            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Thing.__name__))
+        
         super().__init__(name)
         
         if len(defthings) != 2:
             raise TrpgError('引数-{0}-のリストサイズが２ではありません'.format('defthings'))
 
-        self.sbj = Thing.master[defthings[0]] if defthings[0] in Thing.master.keys() else Thing.master['']
-        self.obj = Thing.master[defthings[1]] if defthings[1] in Thing.master.keys() else Thing.master['']
+        if defthings[0] not in Thing.master.keys():
+            raise TrpgError('Thing-{0}-は存在しません'.format(defthings[0]))
+
+        self.sbj = Thing.master[defthings[0]]
+
+        if defthings[1] not in Thing.master.keys():
+            raise TrpgError('Thing-{0}-は存在しません'.format(defthings[1]))
         
+        self.obj = Thing.master[defthings[1]]
+
         # Process のメソッド
-        self.do = lambda: Process.master[procs].deed(self.sbj, self.obj)
+        self.do = lambda n: Process.master[procs].deed(self.sbj, self.obj, n)
         self.target = Process.master[procs].target
         self.role_f = rolething[0]
         self.sbj_f = rolething[1]
@@ -236,6 +257,7 @@ class Event(Master):
             print(self.text)
 
         try:
+            # 主体の設定
             if self.role_f == 1 or self.role_f == 3 or Event.role == None:
                 Event.role = Role.dialog_role()
 
@@ -245,6 +267,7 @@ class Event(Master):
                 Event.role.order_by(self.target)
                 self.sbj = Event.role.order_next()
 
+            # 客体の設定
             if self.role_f == 2 or self.role_f == 3 or Event.role == None:
                 Event.role = Role.dialog_role()
             
@@ -253,6 +276,17 @@ class Event(Master):
             elif self.obj_f == 2:
                 Event.role.order_by(self.target)
                 self.obj = Event.role.order_next()
+
+            # クリーニング
+            if self.sbj.name == '' and Event.sbj != None:
+                self.sbj = Event.sbj
+            else:
+                Event.sbj = self.sbj
+            
+            if self.obj.name == '' and Event.obj != None:
+                self.obj = Event.obj
+            else:
+                Event.obj = self.obj
                 
         except TrpgError as e:
             print('MESSAGE:', e.value)
@@ -271,7 +305,10 @@ class Route(Master):
     """
     master = dict()
     pid = 0
-    def __init__(self, name, event='', dic=dict(), noend=True):
+    def __init__(self, name, event='', dic=dict(), prev=0, noend=True):
+        if len(Event.master) == 0:
+            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Event.__name__))
+        
         super().__init__(name)
 
         # {Route().name: (min, max)}
@@ -283,20 +320,25 @@ class Route(Master):
         self.event = Event.master[event]
         
         self.next = self
+
+        self.prev = prev
         
     def occur(self):
     
         def routing(n):
             """ ルーティングの設計 """
-            for i in sorted(self.route.keys()):
-                if self.route[i][0] <= n < self.route[i][1] or self.route[i][0] == n:
+            for i in self.route.keys():
+                if self.route[i][0] == 'next' \
+                or self.route[i][0] <= n < self.route[i][1] \
+                or self.route[i][0] == n:
+                    Route.master[i].prev = n
                     return Route.master[i]
             else:
                 return self
 
         self.event.focus()
-        n = self.event.do()
-        self.next = routing(n)
+        self.prev = self.event.do(self.prev)
+        self.next = routing(self.prev)
 
 class Role(Master):
     """ 権限の単位、TRPGにおけるPL、PCのPLにあたる """
@@ -388,6 +430,7 @@ class Role(Master):
                     endflg = self.routes[nam].noend
                     self.routes[nam].occur()
                     self.routes[nam] = self.routes[nam].next
+                    print(self.routes[nam].name, self.routes[nam].noend)
 
         except TrpgError as e:
             print('MESSAGE:', e.value)
@@ -405,15 +448,15 @@ class Role(Master):
         nam = input()
         nli = nam.split('.')
 
-        rslt = Thing.master['']
+        rtn = Thing.master['']
 
         if 0 < len(nli) < 3 and nli[0] in self.propts:
             if len(nli) == 1:
-                rslt = self.propts[nli[0]]
+                rtn = self.propts[nli[0]]
             elif len(nli) == 2 and nli[1] in self.propts[nli[0]]:
-                rslt = self.propts[nli[0]].propts[nli[1]]
+                rtn = self.propts[nli[0]].propts[nli[1]]
         
-        return rslt
+        return rtn
 
     @classmethod
     def dialog_role(self):
@@ -438,32 +481,4 @@ class Game:
             for i in self.roles:
                 i.action()
     
-    def new_param(self, *args):
-        Param(*args)
 
-    def new_thing(self, *args):
-        Thing(*args)
-
-    def new_process(self, *args):
-        if len(Param.master) == 0:
-            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Param.__name__))
-        
-        Process(*args)
-
-    def new_event(self, *args):
-        if len(Process.master) == 0:
-            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Process.__name__))
-
-        if len(Thing.master) == 0:
-            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Thing.__name__))
-        
-        Event(*args)
-
-    def new_route(self, *args):
-        if len(Event.master) == 0:
-            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Event.__name__))
-        
-        Route(*args)
-
-    def new_role(self, *args):
-        Role(*args)
