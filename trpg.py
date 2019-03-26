@@ -23,7 +23,7 @@ class Master:
             self.cls.pid += 1
 
         if self.name in self.cls.master.keys():
-            raise TrpgError('すでに名前-{0}-のオブジェクト-{1}-は存在します'.format(self.name, self.cls.__name__))
+            raise TrpgError('すでに名前 -{0}- の {1} オブジェクトは存在します'.format(self.name, self.cls.__name__))
         
         self.cls.master[self.name] = self
 
@@ -79,7 +79,7 @@ class Thing(Master):
 
         for i in lis:
             if i not in Thing.master.keys():
-                raise TrpgError('{0}オブジェクト-{1}-を先に生成してください'.format(Param.__name__, i))
+                raise TrpgError('{0} オブジェクト -{1}- は存在しません'.format(Param.__name__, i))
 
         # [Thing()]
         self.propts = [Thing.master[i] for i in lis]
@@ -116,7 +116,7 @@ class Process(Master):
         - vchange, xchange, compare, increase, decrease
         """
         if len(Param.master) == 0:
-            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Param.__name__))
+            raise TrpgError('{0} オブジェクトを先に生成してください'.format(Param.__name__))
         
         super().__init__(name)
 
@@ -128,22 +128,47 @@ class Process(Master):
         # Event.deedの設定
         self.deed = getattr(self, deed)
 
-        # Event.deed の拡張
+    # Event.deed の拡張
     def point(self, sbj, obj, n):
-        rtn= obj.point(self.target)
-        print('{0}\'s {1} point: {2}'.format(obj.name, self.target.name, rtn))
+        rtn = obj.point(self.target)
+
+        print('{0} の -{1}- ポイントは {2}'.format(obj.name, self.target.name, rtn))
         return rtn
 
-    def siz(self, sbj, obj, n): return obj.siz(self.target)
-    def bar(self, sbj, obj, n): return obj.bar(self.target)
-    def dice(self, sbj, obj, n): return self.target.dice()
-        
+    def siz(self, sbj, obj, n):
+        rtn = obj.siz(self.target)
+
+        print('{0} の -{1}- 基準値は {2}'.format(obj.name, self.target.name, rtn))
+        return rtn
+    
+    def bar(self, sbj, obj, n):
+        rtn = obj.bar(self.target)
+
+        print('{0} の -{1}- 変動値は {2}%'.format(obj.name, self.target.name, rtn))
+        return rtn
+
+    def dice(self, sbj, obj, n):
+        rtn = self.target.dice()
+
+        print('-{0}- は {1} になった'.format(self.target.name, rtn))
+        return rtn
+    
     def ceil(self, sbj, obj, n): return self.target.ceil()
     def wall(self, sbj, obj, n): return self.target.wall()
     def flor(self, sbj, obj, n): return self.target.flor()
     
+    def reset(self, sbj, obj, n):
+        r = obj.siz(self.target) - obj.bar(self.target)
+        rtn = obj.fluctuate(self.target, 1 * r)
+
+        print('{0} の -{1}- をリセットした'.format(obj.name, self.target.name))
+        return rtn
+    
     def vchange(self, sbj, obj, n):
-        return obj.change(self.target, sbj.point(self.target))
+        rtn = obj.change(self.target, sbj.point(self.target))
+
+        print('{0} の -{1}- 値は {2}'.format(obj.name, self.target.name, rtn))
+        return rtn
 
     # あるパラメータについて２つのThingにおける交換
     def xchange(self, sbj, obj, n):
@@ -164,9 +189,11 @@ class Process(Master):
         
         offence = sbj.point(self.target) * sbj_propts_sum * self.target.dice() + sbj.point(self.sbj_param)
         defence = obj.point(self.target) * obj_propts_sum * self.target.dice() + obj.point(self.obj_param)
+
+        rtn = offence - defence
         
-        print(sbj.name, 'の', self.target.name, 'は', int(offence - defence))
-        return offence - defence
+        print('{0} の -{1}- は {2}'.format(sbj.name, self.target.name, int(rtn)))
+        return rtn
 
     def increase(self, sbj, obj, n):
         """
@@ -178,8 +205,8 @@ class Process(Master):
             n = 0
         
         r = obj.fluctuate(self.target, 1 * n)
-        print(obj.name, 'の', self.target.name, 'は', int(r * 100), 'になった')
-
+        
+        print('{0} の -{1}- は {2}% になった'.format(obj.name, self.target.name, int(r * 100)))
         if r >= 1:
             return 1
         else:
@@ -195,10 +222,10 @@ class Process(Master):
             n = 0
         
         r = obj.fluctuate(self.target, -1 * n)
-        print(obj.name, 'の', self.target.name, 'は', int(r * 100), 'になった')
 
+        print('{0} の -{1}- は {2}% になった'.format(obj.name, self.target.name, int(r * 100)))
         if r <= 0:
-            print(obj.name, 'はもう', self.target.name, 'できない')
+            print('{0} はもう -{1}- できない'.format(obj.name, self.target.name))
             return 0
         else:
             return 1
@@ -223,23 +250,23 @@ class Event(Master):
         n = 上記以外: デフォルトのdhingsを指定
         """
         if len(Process.master) == 0:
-            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Process.__name__))
+            raise TrpgError('{0} オブジェクトを先に生成してください'.format(Process.__name__))
 
         if len(Thing.master) == 0:
-            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Thing.__name__))
+            raise TrpgError('{0} オブジェクトを先に生成してください'.format(Thing.__name__))
         
         super().__init__(name)
         
         if len(defthings) != 2:
-            raise TrpgError('引数-{0}-のリストサイズが２ではありません'.format('defthings'))
+            raise TrpgError('引数 -{0}- のリストサイズが２ではありません'.format('defthings'))
 
         if defthings[0] not in Thing.master.keys():
-            raise TrpgError('Thing-{0}-は存在しません'.format(defthings[0]))
+            raise TrpgError('Thing -{0}- は存在しません'.format(defthings[0]))
 
         self.sbj = Thing.master[defthings[0]]
 
         if defthings[1] not in Thing.master.keys():
-            raise TrpgError('Thing-{0}-は存在しません'.format(defthings[1]))
+            raise TrpgError('Thing -{0}- は存在しません'.format(defthings[1]))
         
         self.obj = Thing.master[defthings[1]]
 
@@ -259,20 +286,20 @@ class Event(Master):
         try:
             # 主体の設定
             if self.role_f == 1 or self.role_f == 3 or Event.role == None:
-                Event.role = Role.dialog_role()
+                Event.role = Arbit.dialog(Role)
 
             if self.sbj_f == 1:
-                self.sbj = Event.role.dialg_thing('sbj')
+                self.sbj = Arbit.dialg_propts(Event.role, 'sbj')
             elif self.sbj_f == 2:
                 Event.role.order_by(self.target)
                 self.sbj = Event.role.order_next()
 
             # 客体の設定
             if self.role_f == 2 or self.role_f == 3 or Event.role == None:
-                Event.role = Role.dialog_role()
+                Event.role = Arbit.dialog(Role)
             
             if self.obj_f == 1:
-                self.obj = Event.role.dialg_thing('obj')
+                self.obj = Arbit.dialg_propts(Event.role, 'obj')
             elif self.obj_f == 2:
                 Event.role.order_by(self.target)
                 self.obj = Event.role.order_next()
@@ -307,7 +334,7 @@ class Route(Master):
     pid = 0
     def __init__(self, name, event='', dic=dict(), prev=0, noend=True):
         if len(Event.master) == 0:
-            raise TrpgError('オブジェクト-{0}-を先に生成してください'.format(Event.__name__))
+            raise TrpgError('{0} オブジェクトを先に生成してください'.format(Event.__name__))
         
         super().__init__(name)
 
@@ -363,12 +390,12 @@ class Role(Master):
             print('[{0}]:{1}'.format(self.name, 'thing'), '> ', end='')
             nam = input()
             if nam not in self.propts:
-                raise TrpgError('Role-{0}-はThing-{1}-を所有していません'.format(self.name, nam))
+                raise TrpgError('Role -{0}- は Thing -{1}- を所有していません'.format(self.name, nam))
             
             self.thing = self.propts[nam]
             
             if len(self.thing.propts) == 0:
-                raise TrpgError('Thing-{0}-は他のThingを所有していません'.format(self.thing.name))
+                raise TrpgError('Thing -{0}- は他の Thing を所有していません'.format(self.thing.name))
             
             print('IN {0}'.format(list(self.thing.propts.keys())))
             print('[{0}]:{1}'.format(self.name, 'propts'), '> ', end='')
@@ -430,7 +457,7 @@ class Role(Master):
                     endflg = self.routes[nam].noend
                     self.routes[nam].occur()
                     self.routes[nam] = self.routes[nam].next
-                    print(self.routes[nam].name, self.routes[nam].noend)
+                    # print(self.routes[nam].name, self.routes[nam].noend)
 
         except TrpgError as e:
             print('MESSAGE:', e.value)
@@ -442,32 +469,40 @@ class Role(Master):
         for v in self.propts.values():
             yield v
 
-    def dialg_thing(self, desc):
-        print('IN {0}'.format(list(self.propts.keys())))
-        print('[{0}]:{1}'.format(self.name, desc), '> ', end='')
+class Arbit(Master):
+    """ Role を受け取り、AIがその中の Thing を返す """
+    master = dict()
+    pid = 0
+    def __init__(self, name):
+        super().__init__(name)
+
+    @classmethod
+    def dialog(self, elem):
+        print('IN {0}'.format(list(elem.master.keys())[1:]))
+        print('[{0}]:{1}'.format('Arbit', elem.__name__), '> ', end='')
+
+        nam = input()
+        if nam == '' or nam not in elem.master.keys():
+            raise TrpgError('{0} オブジェクト -{1}- は存在しません'.format(elem.__name__, nam))
+        
+        return elem.master[nam]
+
+    @classmethod
+    def dialg_propts(self, role, desc):
+        print('IN {0}'.format(list(role.propts.keys())))
+        print('[{0}]:{1}'.format(role.name, desc), '> ', end='')
         nam = input()
         nli = nam.split('.')
 
         rtn = Thing.master['']
 
-        if 0 < len(nli) < 3 and nli[0] in self.propts:
+        if 0 < len(nli) < 3 and nli[0] in role.propts:
             if len(nli) == 1:
-                rtn = self.propts[nli[0]]
-            elif len(nli) == 2 and nli[1] in self.propts[nli[0]]:
-                rtn = self.propts[nli[0]].propts[nli[1]]
+                rtn = role.propts[nli[0]]
+            elif len(nli) == 2 and nli[1] in role.propts[nli[0]]:
+                rtn = role.propts[nli[0]].propts[nli[1]]
         
         return rtn
-
-    @classmethod
-    def dialog_role(self):
-        print('IN {0}'.format(list(Role.master.keys())[1:]))
-        print('[{0}]:{1}'.format('Game', 'role'), '> ', end='')
-
-        nam = input()
-        if nam == '' or nam not in Role.master.keys():
-            raise TrpgError('Role-{0}-は存在しません'.format(nam))
-        
-        return Role.master[nam]
 
 class Game:
     def __init__(self, lis):
