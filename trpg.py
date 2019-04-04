@@ -291,8 +291,7 @@ class Event(Master):
             if self.sbj_f == 1:
                 self.sbj = Arbit.dialg_propts(Event.role, 'sbj')
             elif self.sbj_f == 2:
-                Event.role.order_by(self.target)
-                self.sbj = Event.role.order_next()
+                self.sbj = Arbit.order_next(Event.role, self.target.name)
 
             # 客体の設定
             if self.role_f == 2 or self.role_f == 3 or Event.role == None:
@@ -301,8 +300,7 @@ class Event(Master):
             if self.obj_f == 1:
                 self.obj = Arbit.dialg_propts(Event.role, 'obj')
             elif self.obj_f == 2:
-                Event.role.order_by(self.target)
-                self.obj = Event.role.order_next()
+                self.obj = Arbit.order_next(Event.role, self.target.name)
 
             # クリーニング
             if self.sbj.name == '' and Event.sbj != None:
@@ -332,7 +330,7 @@ class Route(Master):
     """
     master = dict()
     pid = 0
-    def __init__(self, name, event='', dic=dict(), prev=0, noend=True):
+    def __init__(self, name, dic=dict(), event='', prev=0, noend=True):
         if len(Event.master) == 0:
             raise TrpgError('{0} オブジェクトを先に生成してください'.format(Event.__name__))
         
@@ -344,7 +342,10 @@ class Route(Master):
         # Boolean
         self.noend = noend
         
-        self.event = Event.master[event]
+        if event == '' and name in Event.master.keys():
+            self.event = Event.master[name]
+        elif event in Event.master.keys():
+            self.event = Event.master[event]
         
         self.next = self
 
@@ -461,11 +462,9 @@ class Role(Master):
 
         except TrpgError as e:
             print('MESSAGE:', e.value)
-            
-    def order_by(self, param):
-        self.propts = dict(sorted(self.propts, key=lambda x: x.point(param)))
         
-    def order_next(self):
+    def order(self, param):
+        self.propts = dict(sorted(self.propts, key=lambda x: x.point(param)))
         for v in self.propts.values():
             yield v
 
@@ -473,8 +472,23 @@ class Arbit(Master):
     """ Role を受け取り、AIがその中の Thing を返す """
     master = dict()
     pid = 0
-    def __init__(self, name):
+    param = ''
+    role = ''
+    def __init__(self, name, role=''):
         super().__init__(name)
+
+    @classmethod
+    def order_next(self, role, param):
+        if Arbit.param != param:
+            Arbit.param = param
+            Arbit.order = Role.master[role].order(Param.master[param])
+        
+        try:
+            rtn = next(Arbit.order)
+        except StopIteration:
+            return None
+        else:
+            return rtn
 
     @classmethod
     def dialog(self, elem):
