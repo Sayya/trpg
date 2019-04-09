@@ -108,7 +108,7 @@ class Process(Master):
     """ Thingの属性（パラメータ）になる② """
     master = dict()
     pid = 0
-    def __init__(self, name, param0='', deed='point', param1='', param2=''):
+    def __init__(self, name, param0='', deed='', param1='', param2=''):
         """
         deed option:
         - point, siz, bar
@@ -126,7 +126,10 @@ class Process(Master):
         self.obj_param = Param.master[param2]
 
         # Event.deedの設定
-        self.deed = getattr(self, deed)
+        try:
+            self.deed = getattr(self, deed)
+        except:
+            self.deed = lambda sbj, obj, n: None
 
     # Event.deed の拡張
     def point(self, sbj, obj, n):
@@ -508,7 +511,7 @@ class Arbit(Master):
         nam = input()
         nli = nam.split('.')
 
-        rtn = Thing.master['']
+        rtn = role.propts[list(role.propts.keys())[0]]
 
         if 0 < len(nli) < 3 and nli[0] in role.propts:
             if len(nli) == 1:
