@@ -129,7 +129,7 @@ class Process(Master):
         try:
             self.deed = getattr(self, deed)
         except:
-            self.deed = lambda sbj, obj, n: None
+            self.deed = lambda sbj, obj, n: 0
 
     # Event.deed の拡張
     def point(self, sbj, obj, n):
