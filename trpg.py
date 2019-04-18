@@ -11,6 +11,7 @@ class TrpgError(Exception):
 class Master:
     master = dict()
     pid = 0
+
     def __init__(self, name, *args):
         self.name = name
         self.cls = self.__class__
@@ -45,7 +46,12 @@ class Param(Master):
     """ Thingの属性（パラメータ）になる """
     master = dict()
     pid = 0
-    def __init__(self, name, dic=dict(), dice=Dice(0, 0)):
+
+    def __init__(self, \
+        name:'str,名前', \
+        dic:'dict-Param.name:int-0,重み'=dict(), \
+        dice:'tuple-int-2,ダイス'=(0, 0)):
+
         super().__init__(name)
 
         # {Param().name: int}
@@ -61,17 +67,23 @@ class Param(Master):
         # 戻値：数値
         self.point = lambda params: self.pointA(params) + self.pointB(params)
 
+        gendice = Dice(*dice)
         # 戻値：数値
-        self.dice = dice.dice
-        self.ceil = dice.ceil
-        self.wall = dice.wall
-        self.flor = dice.flor
+        self.dice = gendice.dice
+        self.ceil = gendice.ceil
+        self.wall = gendice.wall
+        self.flor = gendice.flor
 
 class Thing(Master):
     """ 対象となるもの、オブジェクト """
     master = dict()
     pid = 0
-    def __init__(self, name, dic=dict(), lis=list()):
+
+    def __init__(self, \
+        name:'str,名前', \
+        dic:'dict-Param.name:int-0,パラメータ'=dict(), \
+        lis:'list-Thing-0,所有'=list()):
+        
         super().__init__(name)
 
         # {Param().name: Param()}
@@ -105,16 +117,24 @@ class Thing(Master):
         return self.params[param.name]
 
 class Process(Master):
-    """ Thingの属性（パラメータ）になる② """
+    """ Event の主処理 """
     master = dict()
     pid = 0
-    def __init__(self, name, param0='', deed='', param1='', param2=''):
+
+    def __init__(self, \
+        name:'str,名前', \
+        param0:'Param.name,主パラ'='', \
+        deed:'Process.deed,処理'='', \
+        param1:'Param.name,能パラ'='', \
+        param2:'Param.name,受パラ'=''):
+        
         """
         deed option:
         - point, siz, bar
         - dice, ceil, wall, flor
         - vchange, xchange, compare, increase, decrease
         """
+
         if len(Param.master) == 0:
             raise TrpgError('{0} オブジェクトを先に生成してください'.format(Param.__name__))
         
@@ -241,16 +261,14 @@ class Event(Master):
     sbj = None
     obj = None
 
-    def __init__(self, name, procs='', rolething=(0, 1, 0), defthings=('',''), text=''):
+    def __init__(self, \
+        name:'str,名前', \
+        procs:'Process.name,プロセス'='', \
+        rolething:'tuple-int-3,(ロールフラグ.能フラグ.受フラグ)'=(0, 1, 0), \
+        defthings:'tuple-Thing.name-2,(能者.受者)'=('',''), \
+        text:'str,テキスト'=''):
+        
         """
-        m について
-        m = 0: 使用するRoleはEvent.role
-        m = 1: 使用するRoleをdialgでEvent.roleに設定
-        n について
-        n = 1: self.sbjのみdialg指定
-        n = 2: self.objのみdialg指定
-        n = 3: self.sbj, self.objどちらもdialg指定
-        n = 上記以外: デフォルトのdhingsを指定
         """
         if len(Process.master) == 0:
             raise TrpgError('{0} オブジェクトを先に生成してください'.format(Process.__name__))
@@ -266,10 +284,10 @@ class Event(Master):
         if defthings[0] not in Thing.master.keys():
             raise TrpgError('Thing -{0}- は存在しません'.format(defthings[0]))
 
-        self.sbj = Thing.master[defthings[0]]
-
         if defthings[1] not in Thing.master.keys():
             raise TrpgError('Thing -{0}- は存在しません'.format(defthings[1]))
+
+        self.sbj = Thing.master[defthings[0]]
         
         self.obj = Thing.master[defthings[1]]
 
@@ -333,7 +351,14 @@ class Route(Master):
     """
     master = dict()
     pid = 0
-    def __init__(self, name, dic=dict(), event='', prev=0, noend=True):
+
+    def __init__(self, \
+        name:'str,名前', \
+        dic:'dict-Route.name:tuple+int/next+2-0,ルート'=dict(), \
+        event:'Event.name,イベント'='', \
+        prev:'int,初期値'=0, \
+        noend:'bool,継続'=True):
+        
         if len(Event.master) == 0:
             raise TrpgError('{0} オブジェクトを先に生成してください'.format(Event.__name__))
         
@@ -375,7 +400,12 @@ class Role(Master):
     """ 権限の単位、TRPGにおけるPL、PCのPLにあたる """
     master = dict()
     pid = 0
-    def __init__(self, name, lis1=list(), lis2=list()):
+
+    def __init__(self, \
+        name:'str,名前', \
+        lis1:'list-Thing.name-0,選択肢'=list(), \
+        lis2:'list-Route.name-0,選択ルート'=list()):
+        
         super().__init__(name)
 
         # [Thing().name] => {"name": Thing()}
@@ -477,7 +507,11 @@ class Arbit(Master):
     pid = 0
     param = ''
     role = ''
-    def __init__(self, name, role=''):
+
+    def __init__(self, \
+        name:'str,名前', \
+        role:'Role.name,ロール'=''):
+        
         super().__init__(name)
 
     @classmethod

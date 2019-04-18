@@ -1,4 +1,5 @@
-from trpg import Master, Dice, Param, Thing, Process, Role, Event, Route, Game
+from trpg import Master, Dice, Param, Thing, Process, Event, Route, Role, Game
+from iotemp import Template
 
 class Test:
     def __init__(self):
@@ -7,11 +8,11 @@ class Test:
         Param('感', {'感': 1, })
         Param('知', {'知': 1, })
 
-        Param('戦', {'戦': 1, '力': 5, }, Dice(2,6,10))
-        Param('戦攻',  {'戦攻' : 0.5, '感': 4, }, Dice(2,6))
-        Param('戦防', {'戦防': 0.7, '知': 3, }, Dice(2,6))
+        Param('戦', {'戦': 1, '力': 5, }, (2,6,10))
+        Param('戦攻',  {'戦攻' : 0.5, '感': 4, }, (2,6))
+        Param('戦防', {'戦防': 0.7, '知': 3, }, (2,6))
 
-        Param('道', {'道': 1}, Dice(1, 2))
+        Param('道', {'道': 1}, (1, 2))
         
         Thing('きびだんご', {'力': 1, '戦': 1, })
         Thing('きび単位', {'力': 1, '戦': 2, })
@@ -23,8 +24,8 @@ class Test:
 
         d26 = Dice(2, 6).dice
         Thing('鬼A', {'力': 3, '感': 5, '知': 6, '戦': d26(), '戦攻': d26(), '戦防': d26(), })
-        Thing('鬼B', {'力': d26(), '感': d26(), '知': d26(), '戦': d26(), '戦攻': d26(), '戦防': d26(), })
-        Thing('大鬼', {'力': 20, '感': 5, '知': 5, '戦': d26(), '戦攻': d26(), '戦防': d26(), })
+        Thing('鬼B', {'力': 5, '感': 3, '知': 8, '戦': d26(), '戦攻': d26(), '戦防': d26(), })
+        Thing('大鬼', {'力': 7, '感': 8, '知': 8, '戦': d26(), '戦攻': d26(), '戦防': d26(), })
 
         Process('Battle_Bar', '戦', 'bar')
         Process('Battle_COM', '戦', 'compare')
@@ -110,4 +111,10 @@ class Test:
     def test01(self):
         Game(['太郎']).start()
         
-Test().test01()
+#Test().test01()
+#iot = Template(Param)
+#iot = Template(Thing)
+iot = Template(Process)
+iot = Template(Event)
+iot = Template(Route)
+iot = Template(Role)
