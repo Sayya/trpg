@@ -36,6 +36,8 @@ class Template:
                 typet = tmpls[0]
                 if len(tmpls) > 2:
                     numbt = tmpls[2]
+                    if numbt < 1 and 1000 < numbt:
+                        numbt = 1000
                 if len(tmpls) > 1:
                     valut = tmpls[1]
 
@@ -46,11 +48,23 @@ class Template:
                 elif typet == 'bool':
                     rtn = bool(input('{0} >'.format(desc)))
                 elif typet == 'tuple':
-                    rtn = input('{0} ?>'.format(desc))
+                    tlis = list()
+                    for i in range(int(numbt)):
+                        tlis.append(check(valut))
+                    rtn = tuple(tlis)
                 elif typet == 'list':
-                    rtn = input('{0} ?>'.format(desc))
+                    tlis = list()
+                    for i in range(int(numbt)):
+                        tlis.append(check(valut))
+                    rtn = tlis
                 elif typet == 'dict':
-                    rtn = input('{0} ?>'.format(desc))
+                    tt = typet.split(':')
+                    tlis = list()
+                    for i in range(int(numbt)):
+                        keyt = check(tt[0])
+                        valt = check(tt[1])
+                        tlis.append((keyt, valt))
+                    rtn = dict(tlis)
                 else:
                     tt = typet.split('.')
                     if tt[0] in ('Param', 'Thing', 'Process', 'Event', 'Route', 'Role'):
