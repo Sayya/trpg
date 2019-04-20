@@ -49,13 +49,13 @@ class Param(Master):
 
     def __init__(self, \
         name:'str,名前', \
-        dic:'dict-Param.name:int-0,重み'=dict(), \
+        weight:'dict-Param.name:int-0,重み'=dict(), \
         dice:'tuple-int-2,ダイス'=(0, 0)):
 
         super().__init__(name)
 
         # {Param().name: int}
-        self.weight = dic
+        self.weight = weight
 
         # pointA: 重み(0 <= n <= 1)とパラメータ(Param.master[i])の数値を掛けたものの和
         self.pointA = lambda params: sum(Param.master[i].point(params) * self.weight[i] for i in self.weight.keys() if i != self.name)
@@ -81,20 +81,20 @@ class Thing(Master):
 
     def __init__(self, \
         name:'str,名前', \
-        dic:'dict-Param.name:int-0,パラメータ'=dict(), \
-        lis:'list-Thing-0,所有'=list()):
+        params:'dict-Param.name:int-0,パラメータ'=dict(), \
+        propts:'list-Thing-0,所有'=list()):
         
         super().__init__(name)
 
         # {Param().name: Param()}
-        self.params = dic
+        self.params = params
 
-        for i in lis:
+        for i in propts:
             if i not in Thing.master.keys():
                 raise TrpgError('{0} オブジェクト -{1}- は存在しません'.format(Param.__name__, i))
 
         # [Thing()]
-        self.propts = [Thing.master[i] for i in lis]
+        self.propts = [Thing.master[i] for i in propts]
         self.f_compare = list()
         self.f_xchange = list()
 
@@ -123,10 +123,10 @@ class Process(Master):
 
     def __init__(self, \
         name:'str,名前', \
-        param0:'Param.name,主パラ'='', \
+        target:'Param.name,主パラ'='', \
         deed:'Process.deed,処理'='', \
-        param1:'Param.name,能パラ'='', \
-        param2:'Param.name,受パラ'=''):
+        sbj_param:'Param.name,能パラ'='', \
+        obj_param:'Param.name,受パラ'=''):
         
         """
         deed option:
@@ -140,10 +140,10 @@ class Process(Master):
         
         super().__init__(name)
 
-        self.target = Param.master[param0]
+        self.target = Param.master[target]
 
-        self.sbj_param = Param.master[param1]
-        self.obj_param = Param.master[param2]
+        self.sbj_param = Param.master[sbj_param]
+        self.obj_param = Param.master[obj_param]
 
         # Event.deedの設定
         try:
@@ -354,7 +354,7 @@ class Route(Master):
 
     def __init__(self, \
         name:'str,名前', \
-        dic:'dict-Route.name:tuple+int/next+2-0,ルート'=dict(), \
+        route:'dict-Route.name:tuple+int/next+2-0,ルート'=dict(), \
         event:'Event.name,イベント'='', \
         prev:'int,初期値'=0, \
         noend:'bool,継続'=True):
@@ -365,7 +365,7 @@ class Route(Master):
         super().__init__(name)
 
         # {Route().name: (min, max)}
-        self.route = dic
+        self.route = route
 
         # Boolean
         self.noend = noend
@@ -403,16 +403,16 @@ class Role(Master):
 
     def __init__(self, \
         name:'str,名前', \
-        lis1:'list-Thing.name-0,選択肢'=list(), \
-        lis2:'list-Route.name-0,選択ルート'=list()):
+        propts:'list-Thing.name-0,選択肢'=list(), \
+        routes:'list-Route.name-0,選択ルート'=list()):
         
         super().__init__(name)
 
         # [Thing().name] => {"name": Thing()}
-        self.propts = {v: Thing.master[v] for v in lis1}
+        self.propts = {v: Thing.master[v] for v in propts}
 
         # [Route().name] => {"name": Route()}
-        self.routes = {v: Route.master[v] for v in lis2}
+        self.routes = {v: Route.master[v] for v in routes}
 
         self.thing = Thing.master['']
         self.items = list()
@@ -556,10 +556,10 @@ class Arbit(Master):
         return rtn
 
 class Game:
-    def __init__(self, lis):
+    def __init__(self, roles):
 
         # [Role()]
-        self.roles = [Role.master[v] for v in lis]
+        self.roles = [Role.master[v] for v in roles]
     
     def start(self):
         endflg = True

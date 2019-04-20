@@ -1,16 +1,23 @@
 from trpg import TrpgError, Master
 from inspect import signature, getmembers, isfunction
 import trpg
-from trpg import Dice, Param, Thing, Process, Event, Route, Role
+from trpg import Master, TrpgError, Dice, Param, Thing, Process, Event, Route, Role
 
-class Template:
+class Template(Master):
+    master = dict()
+    pid = 0
+
     def __init__(self, classt):
-        self.sig = signature(classt.__init__).parameters
+        super().__init__(str(Template.pid))
+        self.classt = classt
 
-        if not issubclass(classt, Master):
-            raise TrpgError('{0} は {1} のサブクラスではありません'.format(classt.__name__, Master.__name__))
+    def dialog(self):
+        self.sig = signature(self.classt.__init__).parameters
 
-        print('{0} のセッティング'.format(classt.__name__))
+        if not issubclass(self.classt, Master):
+            raise TrpgError('{0} は {1} のサブクラスではありません'.format(self.classt.__name__, Master.__name__))
+
+        print('{0} のセッティング'.format(self.classt.__name__))
     
         argdic = dict()
         for i in list(self.sig)[1:]:
@@ -82,3 +89,22 @@ class Template:
 
         print('[result]{0}'.format(argdic))
         print()
+
+    def save(self):
+        pass
+    
+    def load(self):
+        pass
+    
+    def makeobj(self):
+        try:
+            self.classt(**self.argdic)
+        except:
+            print('{0} の作成に失敗'.format(self.classt.__name__))
+        else:
+            print('{0} の作成に成功'.format(self.classt.__name__))
+
+    def dumprolething(self):
+        pass
+
+
