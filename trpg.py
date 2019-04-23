@@ -49,8 +49,8 @@ class Param(Master):
 
     def __init__(self, \
         name:'str,名前', \
-        weight:'dict-Param.name:int-0,重み'=dict(), \
-        dice:'tuple-int-2,ダイス'=(0, 0)):
+        weight:'dict-0-Param.name:int,重み'=dict(), \
+        dice:'tuple-2-int,ダイス'=(0, 0)):
 
         super().__init__(name)
 
@@ -81,8 +81,8 @@ class Thing(Master):
 
     def __init__(self, \
         name:'str,名前', \
-        params:'dict-Param.name:int-0,パラメータ'=dict(), \
-        propts:'list-Thing-0,所有'=list()):
+        params:'dict-0-Param.name:int,パラメータ'=dict(), \
+        propts:'list-0-Thing.name,所有'=list()):
         
         super().__init__(name)
 
@@ -264,8 +264,8 @@ class Event(Master):
     def __init__(self, \
         name:'str,名前', \
         procs:'Process.name,プロセス'='', \
-        rolething:'tuple-int-3,(ロールフラグ.能フラグ.受フラグ)'=(0, 1, 0), \
-        defthings:'tuple-Thing.name-2,(能者.受者)'=('',''), \
+        rolething:'tuple-3-int,(ロールフラグ;能フラグ;受フラグ)'=(0, 1, 0), \
+        defthings:'tuple-2-Thing.name,(能者;受者)'=('',''), \
         text:'str,テキスト'=''):
         
         """
@@ -354,7 +354,7 @@ class Route(Master):
 
     def __init__(self, \
         name:'str,名前', \
-        route:'dict-Route.name:tuple+int/next+2-0,ルート'=dict(), \
+        route:'dict-0-Route.name:tuple-2-int,ルート'=dict(), \
         event:'Event.name,イベント'='', \
         prev:'int,初期値'=0, \
         noend:'bool,継続'=True):
@@ -403,8 +403,8 @@ class Role(Master):
 
     def __init__(self, \
         name:'str,名前', \
-        propts:'list-Thing.name-0,選択肢'=list(), \
-        routes:'list-Route.name-0,選択ルート'=list()):
+        propts:'list-0-Thing.name,選択肢'=list(), \
+        routes:'list-0-Route.name,選択ルート'=list()):
         
         super().__init__(name)
 

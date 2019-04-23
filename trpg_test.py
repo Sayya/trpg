@@ -1,5 +1,5 @@
 from trpg import Master, Dice, Param, Thing, Process, Event, Route, Role, Game
-from iotemp import Template
+from iotemp import Template, Scenario
 
 class Test:
     def __init__(self):
@@ -113,9 +113,4 @@ class Test:
         
 #Test().test01()
 Test()
-#iot = Template(Param).dialog()
-#iot = Template(Thing).dialog()
-iot = Template(Process).dialog()
-iot = Template(Event).dialog()
-iot = Template(Route).dialog()
-iot = Template(Role).dialog()
+Scenario().wizard('Test')
