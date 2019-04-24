@@ -10,6 +10,7 @@ class Template(Master):
     holder = dict()
 
     def __init__(self, classt, group='', name=''):
+        """ 初期化及びグループの設定 """
         super().__init__(str(Template.pid))
         self.classt = classt
         self.name = name
@@ -190,7 +191,7 @@ class Scenario:
             for i in range(100):
                 exits = ('q', 'exit', 'quit')
                 print('Exit IN {0}'.format(exits))
-                rtn = input('{0} の作成をしますか？ > '.format(classt.__name__))
+                rtn = input('{0} の作成をします > '.format(classt.__name__))
                 if rtn in exits:
                     raise TrpgError('OK Complete!')
 
@@ -206,7 +207,7 @@ class Scenario:
                 
                 exits = ('q', 'exit', 'quit')
                 print('Exit IN {0}'.format(exits))
-                rtn = input('後のクラスの作成を続けますか？ > ')
+                rtn = input('次のクラスの作成します > ')
                 if rtn in exits:
                     raise TrpgError('OK Fully Complete!')
 

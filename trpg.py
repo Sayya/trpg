@@ -264,8 +264,8 @@ class Event(Master):
     def __init__(self, \
         name:'str,名前', \
         procs:'Process.name,プロセス'='', \
-        rolething:'tuple-3-int,(ロールフラグ;能フラグ;受フラグ)'=(0, 1, 0), \
-        defthings:'tuple-2-Thing.name,(能者;受者)'=('',''), \
+        rolething:'tuple-3-int,(ロールフラグ;能動フラグ;受動フラグ;文字送り)'=(0, 0, 0, 1), \
+        defthings:'tuple-2-Thing.name,(能動者;受動者)'=('',''), \
         text:'str,テキスト'=''):
         
         """
@@ -297,6 +297,7 @@ class Event(Master):
         self.role_f = rolething[0]
         self.sbj_f = rolething[1]
         self.obj_f = rolething[2]
+        self.cap_f = rolething[3]
         
         self.text = text
         
@@ -305,7 +306,11 @@ class Event(Master):
             print(self.text)
 
         try:
-            # 主体の設定
+            #文字送り
+            if self.cap_f == 1:
+                input('> ')
+
+            # 能動者の設定
             if self.role_f == 1 or self.role_f == 3 or Event.role == None:
                 Event.role = Arbit.dialog(Role)
 
@@ -314,7 +319,18 @@ class Event(Master):
             elif self.sbj_f == 2:
                 self.sbj = Arbit.order_next(Event.role, self.target.name)
 
-            # 客体の設定
+            # 能動者クリーニング
+            if self.sbj == None or self.sbj.name == '':
+                if Event.sbj != None and Event.sbj.name != '':
+                    self.sbj = Event.sbj
+                else:
+                    self.sbj = [v for v in Event.role.propts.values()][0]
+                    Event.sbj = self.sbj
+            else:
+                if self.sbj_f > 0:
+                    Event.sbj = self.sbj
+
+            # 受動者の設定
             if self.role_f == 2 or self.role_f == 3 or Event.role == None:
                 Event.role = Arbit.dialog(Role)
             
@@ -322,17 +338,17 @@ class Event(Master):
                 self.obj = Arbit.dialg_propts(Event.role, 'obj')
             elif self.obj_f == 2:
                 self.obj = Arbit.order_next(Event.role, self.target.name)
-
-            # クリーニング
-            if self.sbj.name == '' and Event.sbj != None:
-                self.sbj = Event.sbj
-            else:
-                Event.sbj = self.sbj
             
-            if self.obj.name == '' and Event.obj != None:
-                self.obj = Event.obj
+            # 受動者クリーニング
+            if self.obj == None or self.obj.name == '':
+                if Event.obj != None and Event.obj.name != '':
+                    self.obj = Event.obj
+                else:
+                    self.obj = [v for v in Event.role.propts.values()][0]
+                    Event.obj = self.obj
             else:
-                Event.obj = self.obj
+                if self.obj_f > 0:
+                    Event.obj = self.obj
                 
         except TrpgError as e:
             print('MESSAGE:', e.value)
@@ -375,6 +391,7 @@ class Route(Master):
         elif event in Event.master.keys():
             self.event = Event.master[event]
         
+        self.rootname = name
         self.next = self
 
         self.prev = prev
@@ -409,10 +426,10 @@ class Role(Master):
         super().__init__(name)
 
         # [Thing().name] => {"name": Thing()}
-        self.propts = {v: Thing.master[v] for v in propts}
+        self.propts = {k: Thing.master[k] for k in propts}
 
         # [Route().name] => {"name": Route()}
-        self.routes = {v: Route.master[v] for v in routes}
+        self.routes = {k: Route.master[k] for k in routes}
 
         self.thing = Thing.master['']
         self.items = list()
@@ -420,41 +437,57 @@ class Role(Master):
     def action(self):
         
         def focus():
-            print('IN {0}'.format(list(self.propts.keys())))
-            print('[{0}]:{1}'.format(self.name, 'thing'), '> ', end='')
-            nam = input()
-            if nam not in self.propts:
-                raise TrpgError('Role -{0}- は Thing -{1}- を所有していません'.format(self.name, nam))
+            #print('IN {0}'.format(list(self.propts.keys())))
+            #print('[{0}]:{1}'.format(self.name, 'thing'), '> ', end='')
+            #nam = input()
+            #if nam not in self.propts:
+            #    raise TrpgError('Role -{0}- は Thing -{1}- を所有していません'.format(self.name, nam))
+            #self.thing = self.propts[nam]
+            try:
+                self.thing = Arbit.inputa(self.propts, self.name, 'thing')
+            except TrpgError as e:
+                print('MESSAGE:', e.value)
+                raise e
             
-            self.thing = self.propts[nam]
-            
-            if len(self.thing.propts) == 0:
+            #print('IN {0}'.format(list(self.thing.propts.keys())))
+            #print('[{0}]:{1}'.format(self.name, 'propts'), '> ', end='')
+            #nam = input()
+            #self.items = nam.split(',')
+            self.items.clear
+            try:
+                while Arbit.inpute():
+                    self.items.append(Arbit.inputa({v.name: v for v in self.thing.propts}, self.name, 'propts'))
+            except TrpgError as e:
                 raise TrpgError('Thing -{0}- は他の Thing を所有していません'.format(self.thing.name))
-            
-            print('IN {0}'.format(list(self.thing.propts.keys())))
-            print('[{0}]:{1}'.format(self.name, 'propts'), '> ', end='')
-            nam = input()
-            self.items = nam.split(',')
 
         def on ():
+            """ 比較リストに追加（Equip） """
+            focus()
+
             # 検証
             for i in self.items:
                 for j in self.thing.propts:
                     # 比較リストに追加
-                    if i == j.name:
+                    if i == j:
                         self.thing.f_compare.append(j)
                         self.thing.propts.remove(j)
 
         def off():
+            """ 比較リストから削除（UnEquip） """
+            focus()
+
             # 検証
             for i in self.items:
                 for j in self.thing.f_compare:
                     # アイテムリストに追加
-                    if i == j.name:
+                    if i == j:
                         self.thing.propts.append(j)
                         self.thing.f_compare.remove(j)
 
         def choice():
+            """ 交換リストを更新 """
+            focus()
+
             # 元のアイテムリストに戻す
             self.thing.propts.extend(self.thing.f_xchange[:])
             self.thing.f_xchange.clear()
@@ -463,36 +496,31 @@ class Role(Master):
             for i in self.items:
                 for j in self.thing.propts:
                     # 交換リストに代入
-                    if i == j.name:
+                    if i == j:
                         self.thing.f_xchange.append(j)
                         self.thing.propts.remove(j)
         
-        actlist = ['on', 'off', 'choice']
-        actlist.extend(list(self.routes.keys()))
-        print('IN {0}'.format(actlist))
-        print('[{0}]:{1}'.format(self.name, 'action'), '> ', end='')
-        nam = input()
-        try:
-            if nam == 'on':
-                focus()
-                on()
-            elif nam == 'off':
-                focus()
-                off()
-            elif nam == 'choice':
-                focus()
-                choice()
-            elif nam in self.routes.keys():
-                Event.role = self
+        def way(route):
                 Event.role = self
                 
                 endflg = True
                 while endflg:
-                    endflg = self.routes[nam].noend
-                    self.routes[nam].occur()
-                    self.routes[nam] = self.routes[nam].next
+                    rootname = route.rootname
+                    #print('今のrootnameは:', rootname)
+                    endflg = self.routes[rootname].noend
+                    self.routes[rootname].occur()
+                    self.routes[rootname] = self.routes[route.rootname].next
+                    self.routes[rootname].rootname = rootname
                     # print(self.routes[nam].name, self.routes[nam].noend)
-
+        
+        actdic = {'on': on, 'off': off, 'choice': choice}
+        actdic.update(self.routes)
+        try:
+            act = Arbit.inputa(actdic, self.name, 'action')
+            if type(act) == Route:
+                way(act)
+            else:
+                act()
         except TrpgError as e:
             print('MESSAGE:', e.value)
         
@@ -523,37 +551,72 @@ class Arbit(Master):
         try:
             rtn = next(Arbit.order)
         except StopIteration:
-            return None
-        else:
-            return rtn
+            rtn = None
+
+        return rtn
 
     @classmethod
     def dialog(self, elem):
-        print('IN {0}'.format(list(elem.master.keys())[1:]))
-        print('[{0}]:{1}'.format('Arbit', elem.__name__), '> ', end='')
-
-        nam = input()
-        if nam == '' or nam not in elem.master.keys():
-            raise TrpgError('{0} オブジェクト -{1}- は存在しません'.format(elem.__name__, nam))
+        #print('IN {0}'.format(list(elem.master.keys())[1:]))
+        #print('[{0}]:{1}'.format('Arbit', elem.__name__), '> ', end='')
+        #nam = input()
+        #if nam == '' or nam not in elem.master.keys():
+        #    raise TrpgError('{0} オブジェクト -{1}- は存在しません'.format(elem.__name__, nam))
         
-        return elem.master[nam]
+        # return elem.master[nam]
+
+        return Arbit.inputa(elem.master, 'Arbit', elem.__name__)
 
     @classmethod
     def dialg_propts(self, role, desc):
-        print('IN {0}'.format(list(role.propts.keys())))
-        print('[{0}]:{1}'.format(role.name, desc), '> ', end='')
-        nam = input()
-        nli = nam.split('.')
+        #print('IN {0}'.format(list(role.propts.keys())))
+        #print('[{0}]:{1}'.format(role.name, desc), '> ', end='')
+        #nam = input()
+        #nli = nam.split('.')
 
-        rtn = role.propts[list(role.propts.keys())[0]]
+        #rtn = role.propts[list(role.propts.keys())[0]]
 
-        if 0 < len(nli) < 3 and nli[0] in role.propts:
-            if len(nli) == 1:
-                rtn = role.propts[nli[0]]
-            elif len(nli) == 2 and nli[1] in role.propts[nli[0]]:
-                rtn = role.propts[nli[0]].propts[nli[1]]
+        #if 0 < len(nli) < 3 and nli[0] in role.propts:
+        #    if len(nli) == 1:
+        #        rtn = role.propts[nli[0]]
+        #    elif len(nli) == 2 and nli[1] in role.propts[nli[0]]:
+        #        rtn = role.propts[nli[0]].propts[nli[1]]
+        
+        try:
+            rtn = Arbit.inputa(role.propts, role.name, desc)
+            if Arbit.inpute():
+                rtn = Arbit.inputa({v.name: v for v in rtn.propts}, rtn.name, desc)
+        except TrpgError as e:
+            print('MESSAGE:', e.value)
+            rtn = None
         
         return rtn
+
+    @classmethod
+    def inputa(self, dic, name, desc):
+        if len(dic) == 0:
+            raise TrpgError('選択肢はありません')
+
+        candi = dict(list(zip(list(range(len(dic))), list(dic.keys()))))
+        print('IN {0}'.format(candi))
+        print('[{0}]:{1}'.format(name, desc), '> ', end='')
+        nam = input()
+
+        if nam in [str(i) for i in candi.keys()]:
+            return dic[candi[int(nam)]]
+        else:
+            raise TrpgError('選択しませんでした')
+
+    @classmethod
+    def inpute(self):
+        rpl = ''
+        exits = ('q', 'exit', 'quit')
+        print('Exit IN {0}'.format(exits))
+        rpl = input('選択を続けます > ')
+        if rpl in exits:
+            return False
+        else:
+            return True
 
 class Game:
     def __init__(self, roles):
