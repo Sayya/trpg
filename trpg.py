@@ -257,9 +257,6 @@ class Event(Master):
     """ イベント """
     master = dict()
     pid = 0
-    role = None
-    sbj = None
-    obj = None
 
     def __init__(self, \
         name:'str,名前', \
@@ -301,7 +298,8 @@ class Event(Master):
         
         self.text = text
         
-    def focus(self):
+    def focus(self, role):
+        self.role = role
         if self.text != '':
             print(self.text)
 
@@ -311,44 +309,44 @@ class Event(Master):
                 input('> ')
 
             # 能動者の設定
-            if self.role_f == 1 or self.role_f == 3 or Event.role == None:
-                Event.role = Arbit.dialog(Role)
+            if self.role_f == 1 or self.role_f == 3:
+                self.role = Arbit.dialog(Role)
 
             if self.sbj_f == 1:
-                self.sbj = Arbit.dialg_propts(Event.role, 'sbj')
+                self.sbj = Arbit.dialg_propts(self.role, 'sbj')
             elif self.sbj_f == 2:
-                self.sbj = Arbit.order_next(Event.role, self.target.name)
+                self.sbj = Arbit.order_next(self.role, self.target.name)
 
             # 能動者クリーニング
             if self.sbj == None or self.sbj.name == '':
-                if Event.sbj != None and Event.sbj.name != '':
-                    self.sbj = Event.sbj
+                if self.role.sbj != None or self.role.sbj.name != '':
+                    self.sbj = self.role.sbj
                 else:
-                    self.sbj = [v for v in Event.role.propts.values()][0]
-                    Event.sbj = self.sbj
+                    self.sbj = [v for v in self.role.propts.values()][0]
+                    self.role.sbj = self.sbj
             else:
                 if self.sbj_f > 0:
-                    Event.sbj = self.sbj
+                    self.role.sbj = self.sbj
 
             # 受動者の設定
-            if self.role_f == 2 or self.role_f == 3 or Event.role == None:
-                Event.role = Arbit.dialog(Role)
+            if self.role_f == 2 or self.role_f == 3:
+                self.role = Arbit.dialog(Role)
             
             if self.obj_f == 1:
-                self.obj = Arbit.dialg_propts(Event.role, 'obj')
+                self.obj = Arbit.dialg_propts(self.role, 'obj')
             elif self.obj_f == 2:
-                self.obj = Arbit.order_next(Event.role, self.target.name)
+                self.obj = Arbit.order_next(self.role, self.target.name)
             
             # 受動者クリーニング
             if self.obj == None or self.obj.name == '':
-                if Event.obj != None and Event.obj.name != '':
-                    self.obj = Event.obj
+                if self.role.obj != None or self.role.obj.name != '':
+                    self.obj = self.role.obj
                 else:
-                    self.obj = [v for v in Event.role.propts.values()][0]
-                    Event.obj = self.obj
+                    self.obj = [v for v in self.role.propts.values()][0]
+                    self.role.obj = self.obj
             else:
                 if self.obj_f > 0:
-                    Event.obj = self.obj
+                    self.role.obj = self.obj
                 
         except TrpgError as e:
             print('MESSAGE:', e.value)
@@ -396,7 +394,7 @@ class Route(Master):
 
         self.prev = prev
         
-    def occur(self):
+    def occur(self, role):
     
         def routing(n):
             """ ルーティングの設計 """
@@ -409,7 +407,7 @@ class Route(Master):
             else:
                 return self
 
-        self.event.focus()
+        self.event.focus(role)
         self.prev = self.event.do(self.prev)
         self.next = routing(self.prev)
 
@@ -437,22 +435,12 @@ class Role(Master):
     def action(self):
         
         def focus():
-            #print('IN {0}'.format(list(self.propts.keys())))
-            #print('[{0}]:{1}'.format(self.name, 'thing'), '> ', end='')
-            #nam = input()
-            #if nam not in self.propts:
-            #    raise TrpgError('Role -{0}- は Thing -{1}- を所有していません'.format(self.name, nam))
-            #self.thing = self.propts[nam]
             try:
                 self.thing = Arbit.inputa(self.propts, self.name, 'thing')
             except TrpgError as e:
                 print('MESSAGE:', e.value)
                 raise e
             
-            #print('IN {0}'.format(list(self.thing.propts.keys())))
-            #print('[{0}]:{1}'.format(self.name, 'propts'), '> ', end='')
-            #nam = input()
-            #self.items = nam.split(',')
             self.items.clear
             try:
                 while Arbit.inpute():
@@ -508,7 +496,7 @@ class Role(Master):
                     rootname = route.rootname
                     #print('今のrootnameは:', rootname)
                     endflg = self.routes[rootname].noend
-                    self.routes[rootname].occur()
+                    self.routes[rootname].occur(self)
                     self.routes[rootname] = self.routes[route.rootname].next
                     self.routes[rootname].rootname = rootname
                     # print(self.routes[nam].name, self.routes[nam].noend)
@@ -557,31 +545,10 @@ class Arbit(Master):
 
     @classmethod
     def dialog(self, elem):
-        #print('IN {0}'.format(list(elem.master.keys())[1:]))
-        #print('[{0}]:{1}'.format('Arbit', elem.__name__), '> ', end='')
-        #nam = input()
-        #if nam == '' or nam not in elem.master.keys():
-        #    raise TrpgError('{0} オブジェクト -{1}- は存在しません'.format(elem.__name__, nam))
-        
-        # return elem.master[nam]
-
         return Arbit.inputa(elem.master, 'Arbit', elem.__name__)
 
     @classmethod
     def dialg_propts(self, role, desc):
-        #print('IN {0}'.format(list(role.propts.keys())))
-        #print('[{0}]:{1}'.format(role.name, desc), '> ', end='')
-        #nam = input()
-        #nli = nam.split('.')
-
-        #rtn = role.propts[list(role.propts.keys())[0]]
-
-        #if 0 < len(nli) < 3 and nli[0] in role.propts:
-        #    if len(nli) == 1:
-        #        rtn = role.propts[nli[0]]
-        #    elif len(nli) == 2 and nli[1] in role.propts[nli[0]]:
-        #        rtn = role.propts[nli[0]].propts[nli[1]]
-        
         try:
             rtn = Arbit.inputa(role.propts, role.name, desc)
             if Arbit.inpute():
