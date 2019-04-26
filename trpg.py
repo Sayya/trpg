@@ -287,8 +287,8 @@ class Event(Master):
         if defthings[1] not in Thing.master.keys():
             raise TrpgError('Thing -{0}- は存在しません'.format(defthings[1]))
 
-        self.sbj = Thing.master[defthings[0]]
-        self.obj = Thing.master[defthings[1]]
+        self.sbj_m = Thing.master[defthings[0]]
+        self.obj_m = Thing.master[defthings[1]]
 
         # Process のメソッド
         self.do = lambda n: Process.master[procs].deed(self.sbj, self.obj, n)
@@ -315,13 +315,12 @@ class Event(Master):
             if self.role_f == 1 or self.role_f == 3:
                 self.role = Arbit.dialog(Role)
 
-            if self.sbj.name == '':
+            if self.sbj_m.name == '':
                 if self.role.sbj.name == '':
                     self.sbj = list(self.role.propts.values())[0]
                 else:
                     self.sbj = self.role.sbj
-                    
-            try:
+
                 if self.sbj_f == 1:
                     self.sbj = Arbit.dialg_propts(self.role, 'sbj')
                     self.role.sbj = self.sbj
@@ -332,20 +331,19 @@ class Event(Master):
                     self.sbj = Arbit.order_next(self.role, self.target.name)
                     self.role.sbj = self.sbj
             
-            except TrpgError as e:
-                print('MESSAGE:', e.value)
+            else:
+                self.sbj = self.sbj_m
 
             # 受動者の設定
             if self.role_f == 2 or self.role_f == 3:
                 self.role = Arbit.dialog(Role)
 
-            if self.obj.name == '':
+            if self.obj_m.name == '':
                 if self.role.obj.name == '':
                     self.obj = list(self.role.propts.values())[0]
                 else:
                     self.obj = self.role.obj
-                    
-            try:
+
                 if self.obj_f == 1:
                     self.obj = Arbit.dialg_propts(self.role, 'obj')
                     self.role.obj = self.obj
@@ -356,8 +354,8 @@ class Event(Master):
                     self.obj = Arbit.order_next(self.role, self.target.name)
                     self.role.obj = self.obj
             
-            except TrpgError as e:
-                print('MESSAGE:', e.value)
+            else:
+                self.obj = self.obj_m
                 
         except TrpgError as e:
             print('MESSAGE:', e.value)
