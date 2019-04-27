@@ -290,6 +290,9 @@ class Event(Master):
         self.sbj_m = Thing.master[defthings[0]]
         self.obj_m = Thing.master[defthings[1]]
 
+        self.sbj = Thing.master['']
+        self.obj = Thing.master['']
+
         # Process のメソッド
         self.do = lambda n: Process.master[procs].deed(self.sbj, self.obj, n)
         self.target = Process.master[procs].target
@@ -301,6 +304,7 @@ class Event(Master):
         self.text = text
         
     def focus(self, role):
+        
         self.role = role
         if self.text != '':
             print(self.text)
@@ -310,17 +314,18 @@ class Event(Master):
             input('> ')
             return
 
-        try:
-            # 能動者の設定
-            if self.role_f == 1 or self.role_f == 3:
-                self.role = Arbit.dialog(Role)
+        # 能動者の設定
+        if self.role_f == 1 or self.role_f == 3:
+            self.role = Arbit.dialog(Role)
 
-            if self.sbj_m.name == '':
-                if self.role.sbj.name == '':
-                    self.sbj = list(self.role.propts.values())[0]
-                else:
-                    self.sbj = self.role.sbj
+        if self.sbj_m.name == '':
 
+            if self.role.sbj.name == '':
+                self.sbj = list(self.role.propts.values())[0]
+            else:
+                self.sbj = self.role.sbj
+
+            try:
                 if self.sbj_f == 1:
                     self.sbj = Arbit.dialg_propts(self.role, 'sbj')
                     self.role.sbj = self.sbj
@@ -330,20 +335,27 @@ class Event(Master):
                 elif self.sbj_f == 3:
                     self.sbj = Arbit.order_next(self.role, self.target.name)
                     self.role.sbj = self.sbj
+            except TrpgError as e:
+                print('MESSAGE:', e.value)
+                self.sbj = list(self.role.propts.values())[0]
+                self.role.sbj = self.sbj
             
+        else:
+            self.sbj = self.sbj_m
+            self.role.sbj = self.sbj
+
+        # 受動者の設定
+        if self.role_f == 2 or self.role_f == 3:
+            self.role = Arbit.dialog(Role)
+
+        if self.obj_m.name == '':
+            
+            if self.role.obj.name == '':
+                self.obj = list(self.role.propts.values())[0]
             else:
-                self.sbj = self.sbj_m
+                self.obj = self.role.obj
 
-            # 受動者の設定
-            if self.role_f == 2 or self.role_f == 3:
-                self.role = Arbit.dialog(Role)
-
-            if self.obj_m.name == '':
-                if self.role.obj.name == '':
-                    self.obj = list(self.role.propts.values())[0]
-                else:
-                    self.obj = self.role.obj
-
+            try:
                 if self.obj_f == 1:
                     self.obj = Arbit.dialg_propts(self.role, 'obj')
                     self.role.obj = self.obj
@@ -353,12 +365,16 @@ class Event(Master):
                 elif self.obj_f == 3:
                     self.obj = Arbit.order_next(self.role, self.target.name)
                     self.role.obj = self.obj
+            except TrpgError as e:
+                print('MESSAGE:', e.value)
+                self.obj = list(self.role.propts.values())[0]
+                self.role.obj = self.obj
             
-            else:
-                self.obj = self.obj_m
-                
-        except TrpgError as e:
-            print('MESSAGE:', e.value)
+        else:
+            self.obj = self.obj_m
+            self.role.obj = self.obj
+
+        # print('Route:',self.role.routes['S'].name,', sbj:',self.sbj_m.name,', obj:',self.obj_m.name)
 
 class Route(Master):
     """
@@ -510,12 +526,10 @@ class Role(Master):
                 endflg = True
                 while endflg:
                     rootname = route.rootname
-                    #print('今のrootnameは:', rootname)
                     endflg = self.routes[rootname].noend
                     self.routes[rootname].occur(self)
                     self.routes[rootname] = self.routes[route.rootname].next
                     self.routes[rootname].rootname = rootname
-                    # print(self.routes[nam].name, self.routes[nam].noend)
         
         actdic = {'on': on, 'off': off, 'choice': choice}
         actdic.update(self.routes)
