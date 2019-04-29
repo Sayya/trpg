@@ -1,4 +1,3 @@
-from trpg import TrpgError, Master
 from inspect import signature, getmembers, isfunction
 import json
 import trpg

@@ -41,27 +41,27 @@ class Test:
         Event('12', text='桃太郎は鬼ヶ島へ鬼退治へと向かいました。')
 
         Event('R0', text='鬼ヶ島に来ている\nすると突然鬼が襲いかかってきた')
-        Event('R1', 'Battle_COM', (0, 0, 1, 0), ('鬼A',''), text='鬼Aの攻撃\n誰が攻撃を受けますか？')
-        Event('R1n', 'Battle_Dec', (0, 0, 0, 0), ('',''))
-        Event('R2', 'Battle_COM', (0, 1, 0, 0), ('','鬼A'), text='桃太郎陣営の攻撃')
-        Event('R2n', 'Battle_Dec', (0, 0, 0, 0), ('',''))
+        Event('R1', 'Battle_COM', (0, 0, 1, 0), ('鬼島','鬼A','太郎',''), text='鬼Aの攻撃\n誰が攻撃を受けますか？')
+        Event('R1n', 'Battle_Dec', (0, 0, 0, 0), ('鬼島','','太郎',''))
+        Event('R2', 'Battle_COM', (0, 3, 0, 0), ('太郎','','鬼島','鬼A'), text='桃太郎陣営の攻撃')
+        Event('R2n', 'Battle_Dec', (0, 0, 0, 0), ('太郎','','鬼島',''))
         Event('R3', text='さらに鬼が襲いかかってきた')
-        Event('R4', 'Battle_COM', (0, 0, 1, 0), ('鬼B',''), text='鬼Bの攻撃\n誰が攻撃を受けますか？')
-        Event('R4n', 'Battle_Dec', (0, 0, 0, 0), ('',''))
-        Event('R5', 'Battle_COM', (0, 1, 0, 0), ('','鬼B'), text='桃太郎陣営の攻撃')
-        Event('R5n', 'Battle_Dec', (0, 0, 0, 0), ('',''))
+        Event('R4', 'Battle_COM', (0, 0, 1, 0), ('鬼島','鬼B','太郎',''), text='鬼Bの攻撃\n誰が攻撃を受けますか？')
+        Event('R4n', 'Battle_Dec', (0, 0, 0, 0), ('鬼島','','太郎',''))
+        Event('R5', 'Battle_COM', (0, 3, 0, 0), ('太郎','','鬼島','鬼B'), text='桃太郎陣営の攻撃')
+        Event('R5n', 'Battle_Dec', (0, 0, 0, 0), ('太郎','','鬼島',''))
         Event('R6', 'OneOfTwo', text='何かが近づいてくる！？')
         Event('R7', text='大鬼が現れた')
-        Event('R8', 'Battle_COM', (0, 0, 1, 0), ('大鬼',''), text='大鬼の攻撃\n誰が攻撃を受けますか？')
-        Event('R8n', 'Battle_Dec', (0, 0, 0, 0), ('',''))
-        Event('R9', 'Battle_COM', (0, 1, 0, 0), ('','大鬼'), text='桃太郎陣営の攻撃')
-        Event('R9n', 'Battle_Dec', (0, 0, 0, 0), ('',''))
+        Event('R8', 'Battle_COM', (0, 0, 1, 0), ('鬼島','大鬼','太郎',''), text='大鬼の攻撃\n誰が攻撃を受けますか？')
+        Event('R8n', 'Battle_Dec', (0, 0, 0, 0), ('鬼島','','太郎',''))
+        Event('R9', 'Battle_COM', (0, 3, 0, 0), ('太郎','','鬼島','大鬼'), text='桃太郎陣営の攻撃')
+        Event('R9n', 'Battle_Dec', (0, 0, 0, 0), ('太郎','','鬼島',''))
         Event('R10', text='大鬼は滅ぼされた\n故郷に平和が戻った')
         Event('gameover', text='ゲームオーバー')
 
-        Event('RK0', 'Battle_Bar', (0, 0, 0, 0), ('','きびだんご'))
-        Event('RK1', 'Battle_Inc', (0, 0, 1, 0), ('きびだんご',''))
-        Event('RK2', 'Battle_Bar', (0, 0, 0, 0), ('きび単位','きびだんご'))
+        Event('RK0', 'Battle_Bar', (0, 0, 0, 0), ('','','','きびだんご'))
+        Event('RK1', 'Battle_Inc', (0, 0, 1, 0), ('','きびだんご','',''))
+        Event('RK2', 'Battle_Bar', (0, 0, 0, 0), ('','きび単位','','きびだんご'))
 
         Route('S', {'2': ('next', 0),}, '1')
         Route('2', {'3': ('next', 0),})
@@ -93,10 +93,16 @@ class Test:
         Route('RK2', {'き': ('next', 0),}, noend=False)
 
         Role('太郎', ['桃', '犬', '雉', '猿'], ['S', 'き'])
+        Role('鬼島', ['鬼A', '鬼B', '大鬼'])
 
     def test01(self):
         Game(['太郎']).start()
         
-Test().test01()
-Test()
-Scenario().wizard('Test')
+    def add_wiz(self):
+        def wizard():
+            Scenario().wizard('')
+        list(Role.master.values())[1].routes.update({'making': wizard})
+
+t = Test()
+t.add_wiz()
+t.test01()

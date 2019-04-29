@@ -261,8 +261,8 @@ class Event(Master):
     def __init__(self, \
         name:'str,名前', \
         procs:'Process.name,プロセス'='', \
-        rolething:'tuple-3-int,(ロールフラグ;能動フラグ;受動フラグ;文字送り)'=(0, 0, 0, 1), \
-        defthings:'tuple-2-Thing.name,(能動者;受動者)'=('',''), \
+        rolething_f:'tuple-3-int,(ロールフラグ;能動フラグ;受動フラグ;文字送り)'=(0, 0, 0, 1), \
+        rolething:'tuple-2-Thing.name,(能動ロール;能動者;受動ロール;受動者)'=('','','',''), \
         text:'str,テキスト'=''):
         
         """
@@ -278,17 +278,22 @@ class Event(Master):
         
         super().__init__(name)
         
-        if len(defthings) != 2:
-            raise TrpgError('引数 -{0}- のリストサイズが２ではありません'.format('defthings'))
+        if len(rolething) != 4:
+            raise TrpgError('引数 -{0}- のリストサイズが４ではありません'.format('defthings'))
 
-        if defthings[0] not in Thing.master.keys():
-            raise TrpgError('Thing -{0}- は存在しません'.format(defthings[0]))
+        #self.sbjrole_m = Role.master[rolething[0]]
+        #self.objrole_m = Role.master[rolething[2]]
+        self.sbjrole_m_str = rolething[0]
+        self.objrole_m_str = rolething[2]
 
-        if defthings[1] not in Thing.master.keys():
-            raise TrpgError('Thing -{0}- は存在しません'.format(defthings[1]))
+        if rolething[1] not in Thing.master.keys():
+            raise TrpgError('Thing -{0}- は存在しません'.format(rolething[1]))
 
-        self.sbj_m = Thing.master[defthings[0]]
-        self.obj_m = Thing.master[defthings[1]]
+        if rolething[3] not in Thing.master.keys():
+            raise TrpgError('Thing -{0}- は存在しません'.format(rolething[3]))
+
+        self.sbjthing_m = Thing.master[rolething[1]]
+        self.objthing_m = Thing.master[rolething[3]]
 
         self.sbj = Thing.master['']
         self.obj = Thing.master['']
@@ -296,16 +301,16 @@ class Event(Master):
         # Process のメソッド
         self.do = lambda n: Process.master[procs].deed(self.sbj, self.obj, n)
         self.target = Process.master[procs].target
-        self.role_f = rolething[0]
-        self.sbj_f = rolething[1]
-        self.obj_f = rolething[2]
-        self.cap_f = rolething[3]
+        self.role_f = rolething_f[0]
+        self.sbj_f = rolething_f[1]
+        self.obj_f = rolething_f[2]
+        self.cap_f = rolething_f[3]
         
         self.text = text
         
     def focus(self, role):
+        role_first = role
         
-        self.role = role
         if self.text != '':
             print(self.text)
             
@@ -314,67 +319,79 @@ class Event(Master):
             input('> ')
             return
 
+        # 能動ロールの設定
+        if self.sbjrole_m_str == '':
+            try:
+                if self.role_f == 1 or self.role_f == 3:
+                    role = Arbit.dialog(Role)
+            except TrpgError as e:
+                print('MESSAGE:', e.value)
+                role = role_first
+        else:
+            role = Role.master[self.sbjrole_m_str]
+
         # 能動者の設定
-        if self.role_f == 1 or self.role_f == 3:
-            self.role = Arbit.dialog(Role)
-
-        if self.sbj_m.name == '':
-
-            if self.role.sbj.name == '':
-                self.sbj = list(self.role.propts.values())[0]
+        if self.sbjthing_m.name == '':
+            if role.sbj.name == '':
+                self.sbj = list(role.propts.values())[0]
             else:
-                self.sbj = self.role.sbj
+                self.sbj = role.sbj
+            # print('Role -{0}- のデフォルト能動者 -{1}-'.format(role.name, self.sbj.name))
 
             try:
                 if self.sbj_f == 1:
-                    self.sbj = Arbit.dialg_propts(self.role, 'sbj')
-                    self.role.sbj = self.sbj
+                    self.sbj = Arbit.dialg_propts(role, 'sbj')
+                    role.sbj = self.sbj
                 elif self.sbj_f == 2:
-                    self.sbj = Arbit.dialg_propts2(self.role, 'sbj')
-                    self.role.sbj = self.sbj
+                    self.sbj = Arbit.dialg_propts2(role, 'sbj')
+                    role.sbj = self.sbj
                 elif self.sbj_f == 3:
-                    self.sbj = Arbit.order_next(self.role, self.target.name)
-                    self.role.sbj = self.sbj
+                    self.sbj = Arbit.order_next(role, 'sbj', self.target)
+                    role.sbj = self.sbj
             except TrpgError as e:
                 print('MESSAGE:', e.value)
-                self.sbj = list(self.role.propts.values())[0]
-                self.role.sbj = self.sbj
-            
+                role.sbj = self.sbj
         else:
-            self.sbj = self.sbj_m
-            self.role.sbj = self.sbj
+            self.sbj = self.sbjthing_m
+            role.sbj = self.sbj
+
+        # 受動ロールの設定
+        if self.objrole_m_str == '':
+            try:
+                if self.role_f == 2 or self.role_f == 3:
+                    role = Arbit.dialog(Role)
+            except TrpgError as e:
+                print('MESSAGE:', e.value)
+                role = role_first
+        else:
+            role = Role.master[self.objrole_m_str]
 
         # 受動者の設定
-        if self.role_f == 2 or self.role_f == 3:
-            self.role = Arbit.dialog(Role)
-
-        if self.obj_m.name == '':
-            
-            if self.role.obj.name == '':
-                self.obj = list(self.role.propts.values())[0]
+        if self.objthing_m.name == '':
+            if role.obj.name == '':
+                self.obj = list(role.propts.values())[0]
             else:
-                self.obj = self.role.obj
+                self.obj = role.obj
+            # print('Role -{0}- のデフォルト受動者 -{1}-'.format(role.name, self.obj.name))
 
             try:
                 if self.obj_f == 1:
-                    self.obj = Arbit.dialg_propts(self.role, 'obj')
-                    self.role.obj = self.obj
+                    self.obj = Arbit.dialg_propts(role, 'obj')
+                    role.obj = self.obj
                 elif self.obj_f == 2:
-                    self.obj = Arbit.dialg_propts2(self.role, 'obj')
-                    self.role.obj = self.obj
+                    self.obj = Arbit.dialg_propts2(role, 'obj')
+                    role.obj = self.obj
                 elif self.obj_f == 3:
-                    self.obj = Arbit.order_next(self.role, self.target.name)
-                    self.role.obj = self.obj
+                    self.obj = Arbit.order_next(role, 'obj', self.target)
+                    role.obj = self.obj
             except TrpgError as e:
                 print('MESSAGE:', e.value)
-                self.obj = list(self.role.propts.values())[0]
-                self.role.obj = self.obj
-            
+                role.obj = self.obj
         else:
-            self.obj = self.obj_m
-            self.role.obj = self.obj
+            self.obj = self.objthing_m
+            role.obj = self.obj
 
-        # print('Route:',self.role.routes['S'].name,', sbj:',self.sbj_m.name,', obj:',self.obj_m.name)
+        # print('Route:',role.routes['S'].name,', sbj:',self.sbjthing_m.name,', obj:',self.objthing_m.name)
 
 class Route(Master):
     """
@@ -420,7 +437,6 @@ class Route(Master):
         self.prev = prev
         
     def occur(self, role):
-    
         def routing(n):
             """ ルーティングの設計 """
             for i in self.route.keys():
@@ -456,6 +472,7 @@ class Role(Master):
 
         self.thing = Thing.master['']
         self.items = list()
+        self.ordered = dict([('sbj', dict()), ('obj', dict())])
 
         #Event.focus()で使用
         if len(self.propts) > 0:
@@ -466,7 +483,6 @@ class Role(Master):
             self.obj = Thing.master['']
 
     def action(self):
-        
         def focus():
             try:
                 self.thing = Arbit.inputa(self.propts, self.name, 'thing')
@@ -521,8 +537,6 @@ class Role(Master):
                         self.thing.propts.remove(j)
         
         def way(route):
-                Event.role = self
-                
                 endflg = True
                 while endflg:
                     rootname = route.rootname
@@ -530,6 +544,7 @@ class Role(Master):
                     self.routes[rootname].occur(self)
                     self.routes[rootname] = self.routes[route.rootname].next
                     self.routes[rootname].rootname = rootname
+                self.ordered = dict([('sbj', dict()), ('obj', dict())])
         
         actdic = {'on': on, 'off': off, 'choice': choice}
         actdic.update(self.routes)
@@ -543,33 +558,26 @@ class Role(Master):
             print('MESSAGE:', e.value)
         
     def order(self, param):
-        self.propts = dict(sorted(self.propts, key=lambda x: x.point(param)))
+        """ Generator """
+        self.propts = dict(sorted(self.propts.items(), key=lambda x: x[1].point(param)))
+        print(dict([(k, v) for k, v in self.propts.items()]))
         for v in self.propts.values():
             yield v
 
-class Arbit(Master):
+class Arbit():
     """ Role を受け取り、AIがその中の Thing を返す """
-    master = dict()
-    pid = 0
-    param = ''
-    role = ''
-
-    def __init__(self, \
-        name:'str,名前', \
-        role:'Role.name,ロール'=''):
-        
-        super().__init__(name)
 
     @classmethod
-    def order_next(self, role, param):
-        if Arbit.param != param:
-            Arbit.param = param
-            Arbit.order = Role.master[role].order(Param.master[param])
-        
+    def order_next(self, role, desc, param):
+        input('> ')
+        if param.name not in role.ordered[desc].keys():
+            role.ordered[desc][param.name] = role.order(param)
+
         try:
-            rtn = next(Arbit.order)
+            rtn = next(role.ordered[desc][param.name])
         except StopIteration:
-            rtn = None
+            role.ordered[desc][param.name] = role.order(param)
+            rtn = next(role.ordered[desc][param.name])
 
         return rtn
 
