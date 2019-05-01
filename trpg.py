@@ -50,7 +50,7 @@ class Param(Master):
     def __init__(self, \
         name:'str,名前', \
         weight:'dict-0-Param.name:int,重み'=dict(), \
-        dice:'tuple-2-int,ダイス'=(0, 0)):
+        gdice:'tuple-2-int,ダイス'=(0, 0)):
 
         super().__init__(name)
 
@@ -67,12 +67,17 @@ class Param(Master):
         # 戻値：数値
         self.point = lambda params: self.pointA(params) + self.pointB(params)
 
-        gendice = Dice(*dice)
         # 戻値：数値
-        self.dice = gendice.dice
-        self.ceil = gendice.ceil
-        self.wall = gendice.wall
-        self.flor = gendice.flor
+        self.gdice = gdice
+        
+    def dice(self):
+        return Dice(*self.gdice).dice()
+    def ceil(self):
+        return Dice(*self.gdice).ceil()
+    def wall(self):
+        return Dice(*self.gdice).wall()
+    def flor(self):
+        return Dice(*self.gdice).flor()
 
 class Thing(Master):
     """ 対象となるもの、オブジェクト """
@@ -88,13 +93,13 @@ class Thing(Master):
 
         # {Param().name: Param()}
         self.params = params
+        self.propts = propts
 
         for i in propts:
             if i not in Thing.master.keys():
                 raise TrpgError('{0} オブジェクト -{1}- は存在しません'.format(Param.__name__, i))
 
         # [Thing()]
-        self.propts = [Thing.master[i] for i in propts]
         self.f_compare = list()
         self.f_xchange = list()
 
@@ -107,6 +112,9 @@ class Thing(Master):
         self.point = lambda param: param.point(self.params)
         self.siz = lambda param: self.point(param) * param.ceil()
         self.bar = lambda param: self.siz(param) * self.p_ratio[param.name]
+
+    def getpropts(self):
+        return [Thing.master[i] for i in self.propts]
 
     def fluctuate(self, param, n):
         self.p_ratio[param.name] = (self.bar(param) + n) / self.siz(param)
@@ -124,7 +132,7 @@ class Process(Master):
     def __init__(self, \
         name:'str,名前', \
         target:'Param.name,主パラ'='', \
-        deed:'Process.deed,処理'='', \
+        gdeed:'Process.deed,処理'='', \
         sbj_param:'Param.name,能パラ'='', \
         obj_param:'Param.name,受パラ'=''):
         
@@ -146,10 +154,13 @@ class Process(Master):
         self.obj_param = Param.master[obj_param]
 
         # Event.deedの設定
+        self.gdeed = gdeed
+    
+    def deed(self, sbj, obj, n):
         try:
-            self.deed = getattr(self, deed)
+            return getattr(self, self.gdeed)(sbj, obj, n)
         except:
-            self.deed = lambda sbj, obj, n: 0
+            return 0
 
     # Event.deed の拡張
     def point(self, sbj, obj, n):
@@ -299,7 +310,7 @@ class Event(Master):
         self.obj = Thing.master['']
 
         # Process のメソッド
-        self.do = lambda n: Process.master[procs].deed(self.sbj, self.obj, n)
+        self.procs = procs
         self.target = Process.master[procs].target
         self.role_f = rolething_f[0]
         self.sbj_f = rolething_f[1]
@@ -307,7 +318,10 @@ class Event(Master):
         self.cap_f = rolething_f[3]
         
         self.text = text
-        
+    
+    def do(self, n):
+        return Process.master[self.procs].deed(self.sbj, self.obj, n)
+
     def focus(self, role):
         role_first = role
         
@@ -333,7 +347,7 @@ class Event(Master):
         # 能動者の設定
         if self.sbjthing_m.name == '':
             if role.sbj.name == '':
-                self.sbj = list(role.propts.values())[0]
+                self.sbj = role.getpropts()[0]
             else:
                 self.sbj = role.sbj
             # print('Role -{0}- のデフォルト能動者 -{1}-'.format(role.name, self.sbj.name))
@@ -369,7 +383,7 @@ class Event(Master):
         # 受動者の設定
         if self.objthing_m.name == '':
             if role.obj.name == '':
-                self.obj = list(role.propts.values())[0]
+                self.obj = role.getpropts()[0]
             else:
                 self.obj = role.obj
             # print('Role -{0}- のデフォルト受動者 -{1}-'.format(role.name, self.obj.name))
@@ -464,11 +478,11 @@ class Role(Master):
         
         super().__init__(name)
 
-        # [Thing().name] => {"name": Thing()}
-        self.propts = {k: Thing.master[k] for k in propts}
+        # [Thing().name]
+        self.propts = propts
 
-        # [Route().name] => {"name": Route()}
-        self.routes = {k: Route.master[k] for k in routes}
+        # [Route().name]
+        self.routes = routes
 
         self.thing = Thing.master['']
         self.items = list()
@@ -476,23 +490,35 @@ class Role(Master):
 
         #Event.focus()で使用
         if len(self.propts) > 0:
-            self.sbj = list(self.propts.values())[0]
-            self.obj = list(self.propts.values())[0]
+            self.sbj = self.getpropts()[0]
+            self.obj = self.getpropts()[0]
         else:
             self.sbj = Thing.master['']
             self.obj = Thing.master['']
+    
+    def getpropts(self):
+        return [Thing.master[i] for i in self.propts]
+    
+    def getroutes(self):
+        rtn = list()
+        for i in self.routes:
+            if i in Route.master.keys():
+                rtn.append(Route.master[i])
+            elif type(i).__name__ == 'function':
+                rtn.append(i)
+        return rtn
 
     def action(self):
         def focus():
             try:
-                self.thing = Arbit.inputa(self.propts, self.name, 'thing')
+                self.thing = Arbit.inputa(self.getpropts(), self.name, 'thing')
             except TrpgError as e:
                 raise e
             
             self.items.clear
             try:
                 while Arbit.inpute():
-                    self.items.append(Arbit.inputa({v.name: v for v in self.thing.propts}, self.name, 'propts'))
+                    self.items.append(Arbit.inputa(self.thing.getpropts(), self.name, 'propts'))
             except TrpgError as e:
                 raise TrpgError('Thing -{0}- は他の Thing を所有していません'.format(self.thing.name))
 
@@ -502,11 +528,11 @@ class Role(Master):
 
             # 検証
             for i in self.items:
-                for j in self.thing.propts:
+                for j in self.thing.getpropts():
                     # 比較リストに追加
                     if i == j:
                         self.thing.f_compare.append(j)
-                        self.thing.propts.remove(j)
+                        self.thing.propts.remove(j.name)
 
         def off():
             """ 比較リストから削除（UnEquip） """
@@ -517,7 +543,7 @@ class Role(Master):
                 for j in self.thing.f_compare:
                     # アイテムリストに追加
                     if i == j:
-                        self.thing.propts.append(j)
+                        self.thing.propts.append(j.name)
                         self.thing.f_compare.remove(j)
 
         def choice():
@@ -525,32 +551,32 @@ class Role(Master):
             focus()
 
             # 元のアイテムリストに戻す
-            self.thing.propts.extend(self.thing.f_xchange[:])
+            self.thing.propts.extend([i.name for i in self.thing.f_xchange])
             self.thing.f_xchange.clear()
 
             # 検証
             for i in self.items:
-                for j in self.thing.propts:
+                for j in self.thing.getpropts():
                     # 交換リストに代入
                     if i == j:
                         self.thing.f_xchange.append(j)
-                        self.thing.propts.remove(j)
+                        self.thing.propts.remove(j.name)
         
         def way(route):
                 endflg = True
+                index = self.routes.index(route.name)
                 while endflg:
-                    rootname = route.rootname
-                    endflg = self.routes[rootname].noend
-                    self.routes[rootname].occur(self)
-                    self.routes[rootname] = self.routes[route.rootname].next
-                    self.routes[rootname].rootname = rootname
+                    endflg = route.noend
+                    route.occur(self)
+                    route = route.next
+                self.routes[index] = route.name
                 self.ordered = dict([('sbj', dict()), ('obj', dict())])
         
-        actdic = {'on': on, 'off': off, 'choice': choice}
-        actdic.update(self.routes)
+        actlis = [on, off, choice]
+        actlis.extend(self.getroutes())
         try:
-            act = Arbit.inputa(actdic, self.name, 'action')
-            if type(act) == Route:
+            act = Arbit.inputa(actlis, self.name, 'action')
+            if type(act) is Route:
                 way(act)
             else:
                 act()
@@ -559,9 +585,9 @@ class Role(Master):
         
     def order(self, param):
         """ Generator """
-        self.propts = dict(sorted(self.propts.items(), key=lambda x: x[1].point(param)))
-        print(dict([(k, v) for k, v in self.propts.items()]))
-        for v in self.propts.values():
+        self.propts = [i.name for i in sorted(self.getpropts(), key=lambda x: x.point(param))]
+        print('ORDER IN {0}'.format(self.propts))
+        for v in self.getpropts():
             yield v
 
 class Arbit():
@@ -583,12 +609,12 @@ class Arbit():
 
     @classmethod
     def dialog(self, elem):
-        return Arbit.inputa(elem.master, 'Arbit', elem.__name__)
+        return Arbit.inputa(list(elem.master.values()), 'Arbit', elem.__name__)
 
     @classmethod
     def dialg_propts(self, role, desc):
         try:
-            rtn = Arbit.inputa(role.propts, role.name, desc)
+            rtn = Arbit.inputa(role.getpropts(), role.name, desc)
         except TrpgError as e:
             raise e
         
@@ -599,26 +625,32 @@ class Arbit():
         try:
             rtn1 = Arbit.dialg_propts(role, desc)
             if Arbit.inpute():
-                rtn2 = Arbit.inputa({v.name: v for v in rtn1.propts}, rtn1.name, desc)
+                rtn2 = Arbit.inputa(rtn1.getpropts(), rtn1.name, desc)
         except TrpgError as e:
             raise e
         
         return rtn2
 
     @classmethod
-    def inputa(self, dic, name, desc):
-        if len(dic) == 0:
+    def inputa(self, lis, name, desc):
+        if len(lis) == 0:
             raise TrpgError('選択肢はありません')
+        
+        lis_disp = list()
+        for i in lis:
+            if hasattr(i, 'name'):
+                lis_name = i.name
+            else:
+                lis_name = i.__name__
+            lis_disp.append(lis_name)
+        candi = dict(list(zip(list(range(len(lis))), lis_disp)))
+        print('SELECT IN {0}'.format(candi))
+        nam = input('[{0}]:{1} > '.format(name, desc))
 
-        candi = dict(list(zip(list(range(len(dic))), list(dic.keys()))))
-        print('IN {0}'.format(candi))
-        print('[{0}]:{1}'.format(name, desc), '> ', end='')
-        nam = input()
-
-        if nam in [str(i) for i in candi.keys()]:
-            return dic[candi[int(nam)]]
-        else:
+        if nam not in [str(i) for i in candi.keys()]:
             raise TrpgError('選択しませんでした')
+
+        return lis[int(nam)]
 
     @classmethod
     def inpute(self):

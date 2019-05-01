@@ -14,6 +14,7 @@ class Template(Master):
         self.classt = classt
         self.name = name
         self.group = group
+        self.existclss = None
 
         if self.name != '':
             if group not in Template.holder.keys():
@@ -25,6 +26,28 @@ class Template(Master):
             Template.holder[self.group][classt].add(self.name)
 
     def check(self, tmpl, desc, name):
+
+        def inputu(desc, typet, name):
+            if self.existclss is not None:
+                default = getattr(self.existclss, name)
+                rtn = input('{0}({1}): {2} (default: {3}) >'.format(desc, name, typet, default))
+                if rtn == '':
+                    if type(default) in (int, str, bool):
+                        rtn = default
+                    else:
+                        print('デフォルトを設定します')
+                        rtn = 'q'
+            else:
+                rtn = input('{0}({1}): {2} >'.format(desc, name, typet))
+
+            return rtn
+        
+        def setrtn(name, rtn):
+            if self.existclss is not None:
+                setattr(self.existclss, name, rtn)
+
+            return rtn
+
         tmpls = tmpl.split('-')
         typet = tmpls[0]
         valut = ''
@@ -39,18 +62,26 @@ class Template(Master):
         exits = ('q', 'exit', 'quit')
 
         if typet == 'str':
-            if name == 'name' and self.name != '':
-                rtn = self.name
+            if name == 'name':
+                if self.name != '':
+                    rtn = self.name
+                else:
+                    print('UPDATE IN {0}'.format(list(self.classt.master.keys())))
+                    rtn = inputu(desc, typet, name)
+                
+                # 更新の場合
+                if rtn in list(self.classt.master.keys()):
+                    self.existclss = self.classt.master[rtn]
             else:
-                rtn = input('{0}({1}) >'.format(desc, typet))
+                rtn = inputu(desc, typet, name)
         elif typet == 'int':
             try:
-                rtn = int(input('{0}({1}) >'.format(desc, typet)))
+                rtn = int(inputu(desc, typet, name))
             except ValueError as v:
                 print('Exception: {0}'.format(v))
                 rtn = 0
         elif typet == 'bool':
-            rtn = bool(input('{0}({1}) >'.format(desc, typet)))
+            rtn = bool(inputu(desc, typet, name))
         elif typet == 'tuple':
             tlis = list()
             for i in range(int(numbt)):
@@ -94,8 +125,9 @@ class Template(Master):
                 elif tt[1] == 'deed':
                     gg = getmembers(classt, isfunction)
                     candi = [g[0] for g in gg]
-                print('IN {0}'.format(candi))
-                rtn = input('{0}({1}) >'.format(desc, typet))
+
+                print('SELECT IN {0}'.format(candi))
+                rtn = inputu(desc, typet, name)
                 if rtn not in candi and rtn not in exits:
                     t = Template(classt, group=self.group, name=rtn)
                     t.makefholder(classt)
@@ -103,10 +135,10 @@ class Template(Master):
         if rtn in exits:
             raise TrpgError('OK Complete!')
         
-        return rtn
+        return setrtn(name, rtn)
     
     def makefholder(self, classt):
-        print('IN {0}'.format(Template.holder[self.group][classt]))
+        print('SELECT IN {0}'.format(Template.holder[self.group][classt]))
         rtn = input('テンプレート({0}) >'.format(classt.__name__))
         if rtn in Template.holder[self.group][classt]:
             self.dialog()
@@ -126,7 +158,7 @@ class Template(Master):
             dvalue = sig[i].default
             dclass = type(sig[i].default)
 
-            if dclass.__name__ == 'type':
+            if dclass is type:
                 print('[parameter]{0} (Necessary)'.format(name))
             else:
                 print('[parameter]{0} : [default]{1} ({2})'.format(name, dvalue, dclass.__name__))
@@ -142,8 +174,19 @@ class Template(Master):
                 print('MESSAGE:', e.value)
                 self.argdic[name] = ''
 
-        print('[result]{0}'.format(self.argdic))
-        self.makeobj()
+        if self.existclss is not None:
+            print('アップデート完了: {0}'.format(self.existclss.name))
+            self.attrdump(self.existclss)
+        else:
+            self.makeobj()
+        
+    def attrdump(self, trpgobj):
+        sig = signature(trpgobj.__init__).parameters
+        attrs = dict()
+        for i in list(sig):
+            name = sig[i].name
+            attrs[name] = getattr(trpgobj, name)
+        print('[result]{0}'.format(attrs))
     
     def makeobj(self):
         try:
@@ -152,6 +195,7 @@ class Template(Master):
             print('{0} の作成に失敗: {1}'.format(self.classt.__name__, e))
         else:
             print('{0} の作成に成功'.format(self.classt.__name__))
+            self.attrdump(self.trpgobj)
     
     def jsonload(self, argjson):
         self.argdic = json.load(argjson)
@@ -159,11 +203,11 @@ class Template(Master):
     def jsondumps(self):
 
         def dumprolething():
-            if type(self.trpgobj) == Thing:
+            if type(self.trpgobj) is Thing:
                 self.argdic['name'] = self.trpgobj.name
                 self.argdic['params'] = self.trpgobj.params
                 self.argdic['propts'] = self.trpgobj.propts
-            elif type(self.trpgobj) == Role:
+            elif type(self.trpgobj) is Role:
                 self.argdic['name'] = self.trpgobj.name
                 self.argdic['propts'] = self.trpgobj.propts
                 self.argdic['params'] = self.trpgobj.params
@@ -187,28 +231,28 @@ class Scenario:
     def wizard(self, group):
                 
         def tmpltmake(classt):
-            for i in range(100):
-                exits = ('q', 'exit', 'quit')
-                print('Exit IN {0}'.format(exits))
-                rtn = input('{0} の作成をします > '.format(classt.__name__))
-                if rtn in exits:
-                    raise TrpgError('OK Complete!')
+            exits = ('q', 'exit', 'quit')
+            print('Exit IN {0}'.format(exits))
+            rtn = input('{0} の作成をします > '.format(classt.__name__))
+            if rtn in exits:
+                raise TrpgError('OK Complete!')
 
-                t = Template(classt)
-                t.dialog()
+            t = Template(classt)
+            t.dialog()
 
         def clsstmake(classts):
-            for classt in classts:
+            while True:
+                candi = dict(list(zip(list(range(len(classts))), classts)))
+                candi_disp = dict(list(zip(list(range(len(classts))), [c.__name__ for c in classts])))
+                print('SELECT IN {0}'.format(candi_disp))
+                rtn = input('クラスを選んでください > ')
+                if rtn not in [str(i) for i in candi.keys()]:
+                    raise TrpgError('OK Fully Complete!')
+
                 try:
-                    tmpltmake(classt)
+                    tmpltmake(candi[int(rtn)])
                 except TrpgError as e:
                     print(e)
-                
-                exits = ('q', 'exit', 'quit')
-                print('Exit IN {0}'.format(exits))
-                rtn = input('次のクラスの作成します > ')
-                if rtn in exits:
-                    raise TrpgError('OK Fully Complete!')
 
         classts = [Param, Thing, Process, Event, Route, Role]
         try:

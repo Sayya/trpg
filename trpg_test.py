@@ -101,7 +101,7 @@ class Test:
     def add_wiz(self):
         def wizard():
             Scenario().wizard('')
-        list(Role.master.values())[1].routes.update({'making': wizard})
+        list(Role.master.values())[1].routes.append(wizard)
 
 t = Test()
 t.add_wiz()
