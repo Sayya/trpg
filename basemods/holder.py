@@ -41,3 +41,27 @@ class Holder:
                     print('MESSAGE: {0}'.format(e.value))
                     print('VALIDATE: 削除 クラス -{0}- > アイテム -{1}-'.format(elemname, k))
                     del classmaster[k]
+    
+    @classmethod
+    def progr_out(self, iface):
+        """
+        ユーザに選択してもらう候補を出力
+          OUT: {'curr_func': <func>, 'arg': (), 'next_func': <func>, 'multi_flag': 0/1}
+          OUT: (lis, name, desc, multi_f)
+        """
+        Holder.iface = iface
+        try:
+            return Holder.iface['curr_func'](*Holder.iface['arg'])
+        except TrpgError as e:
+            raise e
+
+    @classmethod
+    def progr_in(self, rtn):
+        """ 
+          IN: 選択結果
+          OUT: {'curr_func': <func>, 'arg': (), 'next_func': <func>, 'multi_flag': 0/1}
+        """
+        try:
+            return Holder.iface['next_func'](rtn)
+        except TrpgError as e:
+            raise e

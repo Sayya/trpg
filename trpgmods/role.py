@@ -25,6 +25,7 @@ class Role(Master):
 
         self.thing = Holder.master('Thing', '')
         self.items = list()
+        self.noend = True
         self.ordered = dict([('sbj', dict()), ('obj', dict())])
 
         #Event.focus()で使用
@@ -80,84 +81,101 @@ class Role(Master):
                 rtn.append(i)
         return rtn
 
-    def action(self):
+    def focus_out_thing(self):
+        return (self.getpropts(), self.name, 'thing', False)
+
+    def focus_in_thing(self, thing):
+        return {'curr_func': self.focus_out_propts, 'arg': (thing,), 'next_func': self.focus_in_propts}
+
+    def focus_out_propts(self, thing):
+        return (thing.getpropts(), thing.name, 'propts', True)
+
+    def focus_in_propts(self, items):
         # インポート部分
-        from basemods import Holder
+        from game import Game
+
+        return {'curr_func': self.act, 'arg': (items,), 'next_func': Game.argdic_first}
+
+    def on(self, items):
+        """ 比較リストに追加（Equip） """
+        # インポート部分
+        from game import Game
+
+        # 検証
+        for i in items:
+            for j in self.thing.getpropts():
+                # 比較リストに追加
+                if i == j:
+                    self.thing.f_compare.append(j)
+                    self.thing.propts.remove(j.name)
+        print('on 完了')
+        return Game.dummy()
+
+    def off(self, items):
+        """ 比較リストから削除（UnEquip） """
+        # インポート部分
+        from game import Game
+
+        # 検証
+        for i in items:
+            for j in self.thing.f_compare:
+                # アイテムリストに追加
+                if i == j:
+                    self.thing.propts.append(j.name)
+                    self.thing.f_compare.remove(j)
+        print('off 完了')
+        return Game.dummy()
+
+    def choice(self, items):
+        """ 交換リストを更新 """
+        # インポート部分
+        from game import Game
+
+        # 元のアイテムリストに戻す
+        self.thing.propts.extend([i.name for i in self.thing.f_xchange])
+        self.thing.f_xchange.clear()
+
+        # 検証
+        for i in items:
+            for j in self.thing.getpropts():
+                # 交換リストに代入
+                if i == j:
+                    self.thing.f_xchange.append(j)
+                    self.thing.propts.remove(j.name)
+        print('change 完了')
+        return Game.dummy()
+    
+    def way_node(self, node):
+        # インポート部分
+        from game import Game
         
-        def focus():
-            try:
-                self.thing = Arbit.inputa(self.getpropts(), self.name, 'thing')
-            except TrpgError as e:
-                raise e
-            
-            self.items.clear
-            try:
-                while Arbit.inpute():
-                    self.items.append(Arbit.inputa(self.thing.getpropts(), self.name, 'propts'))
-            except TrpgError as e:
-                raise TrpgError('Thing -{0}- は他の Thing を所有していません'.format(self.thing.name))
+        self.node = node
 
-        def on ():
-            """ 比較リストに追加（Equip） """
-            focus()
+        return Game.dummy()
 
-            # 検証
-            for i in self.items:
-                for j in self.thing.getpropts():
-                    # 比較リストに追加
-                    if i == j:
-                        self.thing.f_compare.append(j)
-                        self.thing.propts.remove(j.name)
+    def way_in(self, *dummy):
+        # インポート部分
+        from game import Game
 
-        def off():
-            """ 比較リストから削除（UnEquip） """
-            focus()
+        self.index = self.routes.index(self.node.name)
+        if self.noend:
+            self.noend = self.node.noend
+            return {'curr_func': self.node.event().focus_out_first, 'arg': (self,), 'next_func': self.node.event().focus_in_first}
+        else:
+            self.noend = True
+            return {'curr_func': Game.dummy, 'arg': (), 'next_func': Game.argdic_first}
 
-            # 検証
-            for i in self.items:
-                for j in self.thing.f_compare:
-                    # アイテムリストに追加
-                    if i == j:
-                        self.thing.propts.append(j.name)
-                        self.thing.f_compare.remove(j)
-
-        def choice():
-            """ 交換リストを更新 """
-            focus()
-
-            # 元のアイテムリストに戻す
-            self.thing.propts.extend([i.name for i in self.thing.f_xchange])
-            self.thing.f_xchange.clear()
-
-            # 検証
-            for i in self.items:
-                for j in self.thing.getpropts():
-                    # 交換リストに代入
-                    if i == j:
-                        self.thing.f_xchange.append(j)
-                        self.thing.propts.remove(j.name)
+    def way_out(self, *dummy):
+        # インポート部分
+        from game import Game
         
-        def way(route):
-                endflg = True
-                index = self.routes.index(route.name)
-                while endflg:
-                    endflg = route.noend
-                    route.occur(self)
-                    route = route.next
-                self.routes[index] = route.name
-                self.ordered = dict([('sbj', dict()), ('obj', dict())])
-        
-        actlis = [on, off, choice]
-        actlis.extend(self.getroutes())
-        try:
-            act = Arbit.inputa(actlis, self.name, 'action')
-            if type(act) is Holder.classt('Route'):
-                way(act)
-            else:
-                act()
-        except TrpgError as e:
-            print('MESSAGE: ', e.value)
-        
+        self.node.occur()
+        self.node = self.node.next
+        self.routes[self.index] = self.node.name
+        self.ordered = dict([('sbj', dict()), ('obj', dict())])
+
+        return Game.dummy()
+    
     def order(self, param):
         """ Generator """
         self.propts = [i.name for i in sorted(self.getpropts(), key=lambda x: x.point(param))]
@@ -165,3 +183,23 @@ class Role(Master):
         print('ORDER IN {0}'.format(self.propts))
         for v in self.getpropts():
             yield v
+
+    def action_out(self):
+        """ Response Out """
+        actlis = [self.on, self.off, self.choice]
+        actlis.extend(self.getroutes())
+        return (actlis, self.name, 'action', False)
+
+    def action_in(self, act):
+        """ Request In """
+        # インポート部分
+        from basemods import Holder
+
+        if act is None:
+            act = self.getroutes()[0]
+        self.act = act
+
+        if type(act) is Holder.classt('Route'):
+            return {'curr_func': self.way_node, 'arg': (act,), 'next_func': self.way_in}
+        else:
+            return {'curr_func': self.focus_out_thing, 'arg': (), 'next_func': self.focus_in_thing}

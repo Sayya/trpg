@@ -1,8 +1,9 @@
-from trpgmods import Param, Thing, Process, Event, Route, Role
-from game import Game
+from basemods import TrpgError, Arbit, Holder
 
 class Test:
     def __init__(self):
+        # インポート部分
+        from trpgmods import Param, Thing, Process, Event, Route, Role
 
         Param('力', {'力': 1, })
         Param('感', {'感': 1, })
@@ -93,15 +94,48 @@ class Test:
 
         Role('太郎', ['桃', '犬', '雉', '猿'], ['S', 'き'])
         Role('鬼島', ['鬼A', '鬼B', '大鬼'])
-
-    def test01(self):
-        Game(['太郎']).start()
-
+        
 if __name__ == '__main__':
+    
+    # インポート部分
+    from iotemp import Scenario
+    from game import Game
+
     __package__ = 'trpg'
     print('__package__: {}, __name__: {}'.format(__package__, __name__))
-    t = Test()
-    t.test01()
+
+    Test()
+    Game(['太郎'])
+
+    print('SELECT IN {0}'.format({0: 'wizard', 1: 'game'}))
+    start = input('> ')
+
+    if start == '0':
+        Scenario().wizard()
+    else:
+        argdic = Game.argdic_first()
+        while True:
+            rtn_out = Holder.progr_out(argdic)
+            try:
+                candi = Arbit.input_out(*rtn_out[:3])
+                if rtn_out[3]: # 複数の場合 list に
+                    nam = list()
+                    while True:
+                        print('SELECT IN {0}'.format(candi))
+                        rslt = input('[{0}]:{1} > '.format(rtn_out[1], rtn_out[2]))
+                        if rslt in ('q', 'quit', 'exit'):
+                            break
+                        nam.append(rslt)
+                    rtn_in = [Arbit.input_in(rtn_out[0], candi, i) for i in nam]
+                else:
+                    print('SELECT IN {0}'.format(candi))
+                    nam = input('[{0}]:{1} > '.format(rtn_out[1], rtn_out[2]))
+                    rtn_in = Arbit.input_in(rtn_out[0], candi, nam)
+            except TrpgError as e:
+                # print('MESSAGE: {0}'.format(e.value))
+                pass
+
+            argdic = Holder.progr_in(rtn_in)
 
 # trpg ディレクトリの一つ上の階層で以下のコマンド
 # > python -m trpg.test

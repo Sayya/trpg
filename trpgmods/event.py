@@ -120,99 +120,196 @@ class Event(Master):
 
         return Holder.master('Process', self.procs).deed(self.sbj, self.obj, n)
 
-    def focus(self, role):
-        from trpgmods import Role
+    def focus_out_first(self, role_first):
+        # インポート部分
+        from game import Game
 
-        role_f = self.role_f()
-        sbj_f = self.sbj_f()
-        obj_f = self.obj_f()
-        cap_f = self.cap_f()
+        self.role_first = role_first
+        return Game.dummy()
 
-        sbjrole_m_str = self.sbjrole_m_str()
-        sbjthing_m = self.sbjthing_m()
-        objrole_m_str = self.objrole_m_str()
-        objthing_m = self.objthing_m()
+    def focus_in_first(self, *dummy):
+        # インポート部分
+        from game import Game
 
-        role_first = role
-        
         if self.text != '':
             print(self.text)
-            
+        
         #文字送りで入力なし
+        cap_f = self.cap_f()
         if cap_f == 1:
-            input('> ')
-            return
+            return {'curr_func': Game.newline, 'arg': (), 'next_func': self.focus_newline}
+        else:
+            return {'curr_func': self.focus_out_sbj_role, 'arg': (), 'next_func': self.focus_in_sbj_role}
+
+    def focus_newline(self, *dummy):
+        return {'curr_func': self.role_first.way_out, 'arg': (), 'next_func': self.role_first.way_in}
+
+    def focus_out_sbj_role(self):
+        # インポート部分
+        from basemods import Holder
+        from game import Game
+
+        role_f = self.role_f()
+        sbjrole_m_str = self.sbjrole_m_str()
+
+        rtn = Game.dummy()
 
         # 能動ロールの設定
         if sbjrole_m_str == '':
-            try:
-                if role_f == 1 or role_f == 3:
-                    role = Arbit.dialog(Role)
-            except TrpgError as e:
-                print('MESSAGE: ', e.value)
-                role = role_first
+            if role_f in (1, 3):
+                rtn = (Holder.master('Role').values(), 'Arbit', 'Role', 0)
+            else:
+                self.sbjrole = self.role_first
         else:
-            role = Role.master[sbjrole_m_str]
+            self.sbjrole = Holder.master('Role', sbjrole_m_str)
+        
+        return rtn
+
+    def focus_in_sbj_role(self, *dummy):
+        return {'curr_func': self.focus_out_sbj_thing, 'arg': (), 'next_func': self.focus_in_sbj_thing}
+
+    def focus_out_sbj_thing(self):
+        # インポート部分
+        from game import Game
+        
+        sbj_f = self.sbj_f()
+        sbjthing_m = self.sbjthing_m()
+
+        rtn = Game.dummy()
 
         # 能動者の設定
         if sbjthing_m.name == '':
-            if role.sbj.name == '':
-                self.sbj = role.getpropts()[0]
+            if sbj_f in (1, 2):
+                rtn = (self.sbjrole.getpropts(), self.sbjrole.name, 'sbj', 0)
+        
+        return rtn
+
+    def focus_in_sbj_thing(self, sbj):
+        sbj_f = self.sbj_f()
+        sbjthing_m = self.sbjthing_m()
+
+        rtn = {'curr_func': self.focus_out_obj_role, 'arg': (), 'next_func': self.focus_in_obj_role}
+
+        if sbjthing_m.name == '':
+            if self.sbjrole.sbj.name == '':
+                self.sbj = self.sbjrole.getpropts()[0]
             else:
-                self.sbj = role.sbj
+                self.sbj = self.sbjrole.sbj
             # print('Role -{0}- のデフォルト能動者 -{1}-'.format(role.name, self.sbj.name))
 
-            try:
+            if sbj is not None:
                 if sbj_f == 1:
-                    self.sbj = Arbit.dialg_propts(role, 'sbj')
-                    role.sbj = self.sbj
+                    self.sbj = sbj
+                    self.sbjrole.sbj = sbj
                 elif sbj_f == 2:
-                    self.sbj = Arbit.dialg_propts2(role, 'sbj')
-                    role.sbj = self.sbj
+                    rtn = {'curr_func': self.focus_out_sbj_thing2, 'arg': (sbj,), 'next_func': self.focus_in_sbj_thing2}
                 elif sbj_f == 3:
-                    self.sbj = Arbit.order_next(role, 'sbj', self.target)
-                    role.sbj = self.sbj
-            except TrpgError as e:
-                print('MESSAGE: ', e.value)
-                role.sbj = self.sbj
+                    if self.target.name not in self.sbjrole.ordered['sbj'].keys():
+                        self.sbjrole.ordered['sbj'][self.target.name] = self.sbjrole.order(self.target)
+
+                    try:
+                        self.sbj = next(self.sbjrole.ordered['sbj'][self.target.name])
+                    except StopIteration:
+                        self.sbjrole.ordered['sbj'][self.target.name] = self.sbjrole.order(self.target)
+                        self.sbj = next(self.sbjrole.ordered['sbj'][self.target.name])
+                        
+                    self.sbjrole.sbj = self.sbj
         else:
             self.sbj = sbjthing_m
-            role.sbj = self.sbj
+            self.sbjrole.sbj = self.sbj
+        
+        return rtn
+
+    def focus_out_sbj_thing2(self, sbj):        
+        return (sbj.getpropts(), sbj.name, 'sbj', 0)
+
+    def focus_in_sbj_thing2(self, sbj):
+        if sbj is not None:
+            self.sbj = sbj
+        return {'curr_func': self.focus_out_obj_role, 'arg': (), 'next_func': self.focus_in_obj_role}
+
+    def focus_out_obj_role(self):
+        # インポート部分
+        from basemods import Holder
+        from game import Game
+
+        role_f = self.role_f()
+        objrole_m_str = self.objrole_m_str()
+
+        rtn = Game.dummy()
 
         # 受動ロールの設定
         if objrole_m_str == '':
-            try:
-                if role_f == 2 or role_f == 3:
-                    role = Arbit.dialog(Role)
-            except TrpgError as e:
-                print('MESSAGE: ', e.value)
-                role = role_first
-        else:
-            role = Role.master[objrole_m_str]
-
-        # 受動者の設定
-        if objthing_m.name == '':
-            if role.obj.name == '':
-                self.obj = role.getpropts()[0]
+            if role_f in (2, 3):
+                rtn = (Holder.master('Role').values(), 'Arbit', 'Role', 0)
             else:
-                self.obj = role.obj
-            # print('Role -{0}- のデフォルト受動者 -{1}-'.format(role.name, self.obj.name))
+                self.objrole = self.role_first
+        else:
+            self.objrole = Holder.master('Role', objrole_m_str)
+        
+        return rtn
 
-            try:
+    def focus_in_obj_role(self, *dummy):
+        return {'curr_func': self.focus_out_obj_thing, 'arg': (), 'next_func': self.focus_in_obj_thing}
+
+    def focus_out_obj_thing(self):
+        # インポート部分
+        from game import Game
+        
+        obj_f = self.obj_f()
+        objthing_m = self.objthing_m()
+
+        rtn = Game.dummy()
+
+        # 能動者の設定
+        if objthing_m.name == '':
+            if obj_f in (1, 2):
+                rtn = (self.objrole.getpropts(), self.objrole.name, 'obj', 0)
+        
+        return rtn
+
+    def focus_in_obj_thing(self, obj):
+        obj_f = self.obj_f()
+        objthing_m = self.objthing_m()
+
+        rtn = {'curr_func': self.role_first.way_out, 'arg': (), 'next_func': self.role_first.way_in}
+
+        if objthing_m.name == '':
+            if self.objrole.obj.name == '':
+                self.obj = self.objrole.getpropts()[0]
+            else:
+                self.obj = self.objrole.obj
+            # print('Role -{0}- のデフォルト能動者 -{1}-'.format(role.name, self.obj.name))
+
+            if obj is not None:
                 if obj_f == 1:
-                    self.obj = Arbit.dialg_propts(role, 'obj')
-                    role.obj = self.obj
+                    self.obj = obj
+                    self.objrole.obj = obj
                 elif obj_f == 2:
-                    self.obj = Arbit.dialg_propts2(role, 'obj')
-                    role.obj = self.obj
+                    rtn = {'curr_func': self.focus_out_obj_thing2, 'arg': (obj,), 'next_func': self.focus_in_obj_thing2}
                 elif obj_f == 3:
-                    self.obj = Arbit.order_next(role, 'obj', self.target)
-                    role.obj = self.obj
-            except TrpgError as e:
-                print('MESSAGE: ', e.value)
-                role.obj = self.obj
+                    if self.target.name not in self.objrole.ordered['obj'].keys():
+                        self.objrole.ordered['obj'][self.target.name] = self.objrole.order(self.target)
+
+                    try:
+                        self.obj = next(self.objrole.ordered['obj'][self.target.name])
+                    except StopIteration:
+                        self.objrole.ordered['obj'][self.target.name] = self.objrole.order(self.target)
+                        self.obj = next(self.objrole.ordered['obj'][self.target.name])
+                        
+                    self.objrole.obj = self.obj
         else:
             self.obj = objthing_m
-            role.obj = self.obj
+            self.objrole.obj = self.obj
+        
+        return rtn
 
-        # print('Route:',role.routes['S'].name,', sbj:',self.sbjthing_m.name,', obj:',self.objthing_m.name)
+        # print('Route:',self.role_first.routes['S'].name,', sbj:',self.sbjthing_m.name,', obj:',self.objthing_m.name)
+
+    def focus_out_obj_thing2(self, obj):        
+        return (obj.getpropts(), obj.name, 'obj', 0)
+
+    def focus_in_obj_thing2(self, obj):
+        if obj is not None:
+            self.obj = obj
+        return {'curr_func': self.role_first.way_out, 'arg': (), 'next_func': self.role_first.way_in}

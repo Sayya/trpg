@@ -79,7 +79,7 @@ class Route(Master):
         elif self.gevent in Holder.master('Event').keys():
             return Holder.master('Event', self.gevent)
         
-    def occur(self, role):
+    def occur(self):
         def routing(n):
             """ ルーティングの設計 """
             for i in self.route.keys():
@@ -92,8 +92,6 @@ class Route(Master):
             else:
                 return self
 
-        event = self.event()
-        event.focus(role)
-        self.prev = event.do(self.prev)
+        self.prev = self.event().do(self.prev)
         self.next = routing(self.prev)
         # print('Route next:', self.next.name)
