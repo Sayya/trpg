@@ -13,149 +13,160 @@ class Template(Master):
         """ 初期化及びグループの設定 """
         super().__init__(str(Template.pid))
         self.classt = classt
-        self.name = name
         self.group = group
+        self.name = name
         self.existclss = None
 
-        if self.name != '':
-            if group not in Template.holder.keys():
-                Template.holder[self.group] = {self.classt: dict()}
+        if group not in Template.holder.keys():
+            Template.holder[self.group] = {self.classt: dict()}
 
-            if classt not in Template.holder[self.group].keys():
-                Template.holder[self.group][self.classt] = dict()
+        if classt not in Template.holder[self.group].keys():
+            Template.holder[self.group][self.classt] = dict()
 
+        if name not in Template.holder[self.group][classt].keys():
             Template.holder[self.group][classt][self.name] = ''
 
-    def check(self, tmpl, desc, name):
+    def check_in(self, tmpl, desc):
         # インポート部分
         from basemods import Holder
 
-        def inputu(desc, typet, name):
+        def outputu(desc, typet):
             if self.existclss is not None:
-                default = getattr(self.existclss, name)
-                rtn = input('{0}({1}): {2} (default: {3}) >'.format(desc, name, typet, default))
-                if rtn == '':
-                    if type(default) in (int, str, bool):
-                        rtn = default
-                    else:
-                        raise TrpgError('デフォルトを設定します')
+                self.default = getattr(self.existclss, self.s_name)
+                message = '{0}({1}): {2} (default: {3})'.format(desc, self.s_name, typet, self.default)
             else:
-                rtn = input('{0}({1}): {2} >'.format(desc, name, typet))
+                message = '{0}({1}): {2}'.format(desc, self.s_name, typet)
 
-            return rtn
-        
-        def setrtn(name, rtn):
-            if self.existclss is not None:
-                setattr(self.existclss, name, rtn)
-
-            return rtn
+            return (list(), message, False)
         
         tmpls = tmpl.split('-')
-        typet = tmpls[0]
-        valut = ''
-        numbt = ''
+
+        self.typet = tmpls[0]
+        self.valut = ''
+        self.numbt = ''
         if len(tmpls) > 1:
-            numbt = int(tmpls[1])
-            if numbt < 1 or 1000 < numbt:
-                numbt = 1000
-            valut = '-'.join(tmpls[2:])
+            self.numbt = int(tmpls[1])
+            if self.numbt < 1 or 1000 < self.numbt:
+                self.numbt = 1000
+            self.valut = '-'.join(tmpls[2:])
+
+        if self.typet == 'str':
+            if self.s_name == 'name':
+                if self.name == '':
+                    print('UPDATE IN {0}'.format(list(self.classt.master.keys())))
+                    return outputu(desc, self.typet)
+            else:
+                try:
+                    return outputu(desc, self.typet)
+                except TrpgError as e:
+                    raise e
+        elif self.typet == 'int':
+            try:
+                return outputu(desc, self.typet)
+            except TrpgError as e:
+                raise e
+        elif self.typet == 'bool':
+            try:
+                return outputu(desc, self.typet)
+            except TrpgError as e:
+                raise e
+        elif self.typet == 'tuple':
+            self.tlis = list()
+            for i in range(int(self.numbt)):
+                yield self.check_in(self.valut, desc)
+        elif self.typet == 'list':
+            self.tlis = list()
+            for i in range(int(self.numbt)):
+                yield self.check_in(self.valut, desc)
+        elif self.typet == 'dict':
+            tt = self.valut.split(':')
+            self.tlis = list()
+            for i in range(int(self.numbt)):
+                yield self.check_in(tt[0], desc)
+                yield self.check_in(tt[1], desc)
+        else:
+            self.tt = self.typet.split('.')
+            classtnames = ('Param', 'Thing', 'Process', 'Event', 'Route', 'Role')
+            if self.tt[0] in classtnames:
+                self.s_classt = Holder.classt(tt[0])
+                if self.tt[1] == 'name':
+                    self.s_candi = list(self.s_classt.master.keys())
+                elif self.tt[1] == 'deed':
+                    gg = getmembers(self.s_classt, isfunction)
+                    self.s_candi = [g[0] for g in gg]
+
+                print('SELECT IN {0}'.format(self.s_candi))
+
+                return outputu(desc, self.typet)
+
+    def check_out(self, opted):
+        # インポート部分
+        from basemods import Holder
+
+        def inputu(desc, rtn):
+            if self.existclss is not None:
+                if rtn == '':
+                    if type(self.default) in (int, str, bool):
+                        rtn = self.default
+                    else:
+                        raise TrpgError('デフォルトを設定します')
+
+            return rtn
 
         # print('{0}-{1}-{2} is required'.format(typet,valut,numbt))
         exits = ('q', 'exit', 'quit')
 
-        if typet == 'str':
-            if name == 'name':
+        if self.typet == 'str':
+            if self.s_name == 'name':
                 if self.name != '':
                     rtn = self.name
                 else:
-                    print('UPDATE IN {0}'.format(list(self.classt.master.keys())))
-                    rtn = inputu(desc, typet, name)
+                    rtn = opted
                 
                 # 更新の場合
                 if rtn in list(self.classt.master.keys()):
                     self.existclss = self.classt.master[rtn]
             else:
-                try:
-                    rtn = inputu(desc, typet, name)
-                except TrpgError as e:
-                    raise e
-        elif typet == 'int':
+                rtn = opted
+        elif self.typet == 'int':
             try:
-                rtn_str = inputu(desc, typet, name)
-            except TrpgError as e:
-                raise e
-
-            try:
-                rtn = int(rtn_str)
+                rtn = int(opted)
             except ValueError as e:
-                if Dice.checkdice(rtn_str) > 0:
+                if Dice.checkdice(rtn) > 0:
                     print('MESSAGE: ダイス形式で設定')
-                    rtn = rtn_str
+                    rtn = opted
                 else:
                     print('Exception: {0}'.format(e))
                     rtn = 0
-        elif typet == 'bool':
-            try:
-                rtn = bool(inputu(desc, typet, name))
-            except TrpgError as e:
-                raise e
-        elif typet == 'tuple':
-            tlis = list()
-            for i in range(int(numbt)):
-                try:
-                    tlis.append(self.check(valut, desc, name))
-                except TrpgError as e:
-                    raise e
-
-            rtn = tuple(tlis)
-        elif typet == 'list':
-            tlis = list()
-            for i in range(int(numbt)):
-                try:
-                    tlis.append(self.check(valut, desc, name))
-                except TrpgError as e:
-                    raise e
-
-            rtn = tlis
-        elif typet == 'dict':
-            tt = valut.split(':')
-            tlis = list()
-            for i in range(int(numbt)):
-                try:
-                    keyt = self.check(tt[0], desc, name)
-                    valt = self.check(tt[1], desc, name)
-                except TrpgError as e:
-                    raise e
+        elif self.typet == 'bool':
+            rtn = bool(opted)
+        elif self.typet == 'tuple':
+            self.tlis.append(opted)
+            rtn = tuple(self.tlis)
+        elif self.typet == 'list':
+            self.tlis.append(opted)
+            rtn = self.tlis
+        elif self.typet == 'dict':
+            keyt = opted
+            valt = opted
                 
-                tlis.append((keyt, valt))
-            rtn = dict(tlis)
+            self.tlis.append((keyt, valt))
+            rtn = dict(self.tlis)
         else:
-            tt = typet.split('.')
-            classtnames = ('Param', 'Thing', 'Process', 'Event', 'Route', 'Role')
-            if tt[0] in classtnames:
-                classt = Holder.classt(tt[0])
-                if tt[1] == 'name':
-                    candi = list(classt.master.keys())
-                elif tt[1] == 'deed':
-                    gg = getmembers(classt, isfunction)
-                    candi = [g[0] for g in gg]
-
-                print('SELECT IN {0}'.format(candi))
-
-                try:
-                    rtn = inputu(desc, typet, name)
-                except TrpgError as e:
-                    raise e
-                
-                if tt[1] == 'name' and rtn not in candi and rtn not in exits:
-                    t = Template(classt, self.group, rtn)
-                    print('グループ -{0}- > クラス -{1}- > テンプレート -{2}- を作成しました >'.format(self.group, classt.__name__, rtn))
-                    t.holdermap(self.group, classt, rtn)
+            rtn = opted
+            if self.tt[1] == 'name' and rtn not in self.s_candi and rtn not in exits:
+                t = Template(self.s_classt, self.group, rtn)
+                print('グループ -{0}- > クラス -{1}- > テンプレート -{2}- を作成しました'.format(self.group, self.s_classt.__name__, rtn))
+                t.holdermap(self.group, self.s_classt, rtn)
                 
         if rtn in exits:
             raise TrpgError('OK Complete!')
         
-        return setrtn(name, rtn)
+        if self.existclss is not None:
+            setattr(self.existclss, self.s_name, rtn)
+
+        return rtn
+
     
     @classmethod
     def holdermap(self, group, classt, holder):
@@ -167,8 +178,8 @@ class Template(Master):
         else:
             print('選択しませんでした')
 
-    def dialog(self):
-        sig = signature(self.classt.__init__).parameters
+    def dialog_hop(self):
+        self.sign = signature(self.classt.__init__).parameters
 
         if not issubclass(self.classt, Master):
             raise TrpgError('{0} は {1} のサブクラスではありません'.format(self.classt.__name__, Master.__name__))
@@ -176,37 +187,53 @@ class Template(Master):
         print('{0} のセッティング'.format(self.classt.__name__))
     
         self.argdic = dict()
-        for i in list(sig)[1:]:
-            name = sig[i].name
-            anno = sig[i].annotation
-            dvalue = sig[i].default
-            dclass = type(sig[i].default)
+        for i in list(self.sign)[1:]:
+            yield self.sign[i]
 
-            if dclass is type:
-                print('[parameter]{0} (Necessary)'.format(name))
+    def dialog_step_out(self, s):
+        self.s_name = s.name
+        anno = s.annotation
+        dvalue = s.default
+        dclass = type(s.default)
+
+        if dclass is type:
+            print('[parameter]{0} (Necessary)'.format(self.s_name))
+        else:
+            print('[parameter]{0} : [default]{1} ({2})'.format(self.s_name, dvalue, dclass.__name__))
+        
+        annos = anno.split(',')
+        tmpl = annos[0]
+        if len(annos) > 1:
+            desc = annos[1].replace(';', ',')
+
+            return {'curr_func': self.check_in, 'arg': (tmpl, desc, self.s_name), 'next_func': self.check_out}
+        else:
+            return
+
+    def dialog_step_in(self, c):
+        try:
+            self.argdic[self.s_name] = c
+        except TrpgError as e:
+            print('MESSAGE: ', e.value)
+            if self.existclss is not None:
+                # デフォルト
+                self.argdic[self.s_name] = getattr(self.existclss, self.s_name)
             else:
-                print('[parameter]{0} : [default]{1} ({2})'.format(name, dvalue, dclass.__name__))
-            
-            annos = anno.split(',')
-            tmpl = annos[0]
-            if len(annos) > 1:
-                desc = annos[1].replace(';', ',')
+                self.argdic[self.s_name] = ''
 
-            try:
-                self.argdic[name] = self.check(tmpl, desc, name)
-            except TrpgError as e:
-                print('MESSAGE: ', e.value)
-                if self.existclss is not None:
-                    # デフォルト
-                    self.argdic[name] = getattr(self.existclss, name)
-                else:
-                    self.argdic[name] = ''
+        return (list(), '', False)
+
+    def dialog_jump(self):
+        # インポート部分
+        from iotemp import Scenario
 
         if self.existclss is not None:
             print('アップデート完了: {0}'.format(self.existclss.name))
             Template.attrdump(self.existclss)
         else:
             self.makeobj()
+
+        return {'curr_func': Scenario.operation_out, 'arg': (), 'next_func': Scenario.operation_in}
     
     @classmethod
     def attrdump(self, trpgobj):
@@ -215,15 +242,22 @@ class Template(Master):
         for i in list(sig):
             name = sig[i].name
             attrs[name] = getattr(trpgobj, name)
-        print('[result]{0}'.format(attrs))
+        print('{0} CREATED: {1}'.format(trpgobj.__class__.__name__, attrs))
     
     def makeobj(self):
         try:
             self.trpgobj = self.classt(**self.argdic)
         except Exception as e:
-            print('{0} の作成に失敗: {1}'.format(self.classt.__name__, e))
+            print('{0} CREATION FAILED: {1}'.format(self.classt.__name__, e))
         else:
-            print('{0} の作成に成功'.format(self.classt.__name__))
+            Template.attrdump(self.trpgobj)
+
+    def make(self, *arglis, **argdic):
+        try:
+            self.trpgobj = self.classt(*arglis, **argdic)
+        except Exception as e:
+            print('{0} CREATION FAILED: {1}'.format(self.classt.__name__, e))
+        else:
             Template.attrdump(self.trpgobj)
     
     def jsonload(self, argjson):

@@ -84,6 +84,12 @@ class Event(Master):
         if len(self.thing) != 2:
             raise TrpgError('引数 -{0}- のリストサイズが２ではありません'.format('thing'))
     
+    def do(self, n):
+        # インポート部分
+        from basemods import Holder
+
+        return Holder.master('Process', self.procs).deed(self.sbj, self.obj, n)
+    
     def role_f(self):
         return self.rolething_f[0]
         
@@ -113,12 +119,6 @@ class Event(Master):
         from basemods import Holder
 
         return Holder.master('Thing', self.thing[1])
-    
-    def do(self, n):
-        # インポート部分
-        from basemods import Holder
-
-        return Holder.master('Process', self.procs).deed(self.sbj, self.obj, n)
 
     def focus_out_first(self, role_first):
         # インポート部分

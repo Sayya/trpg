@@ -8,69 +8,101 @@ class Scenario:
     def __init__(self):
         pass
     
+    @classmethod
     def open(self, name, group):
         m = list() # DBからの引き込み
         for obj in m:
             t = Template(obj.classt)
             t.jsonload(obj.argjson)
             t.makeobj()
-
-    def wizard(self):
-
-        def classtmake(classts, group):
-            """ クラスを選択＆作成 """
-            
-            # インポート部分
-            from basemods import Holder
-
-            while True:
-                candi = dict(list(zip( \
-                    list(range(len(classts))), \
-                    [Holder.classt(c) for c in classts] \
-                )))
-
-                candi_disp = dict(list(zip(list(range(len(classts))), classts)))
-                print('SELECT IN {0}'.format(candi_disp))
-                rtn = input('クラスを選んでください > ')
-                if rtn not in [str(i) for i in candi.keys()]:
-                    raise TrpgError('OK Fully Complete!')
-
-                print('SELECT IN {0}'.format({0: 'クラス作成', 1: 'テンプレートマッピング', 2: 'クラスインスタンス一覧'}))
-                opted = input('{0} クラス操作を選択します > '.format(candi_disp[int(rtn)]))
-                if opted == '0':
-                    try:
-                        t = Template(candi[int(rtn)], group)
-                        t.dialog()
-                    except TrpgError as e:
-                        print(e)
-                elif opted == '1':
-                    holdermap(candi[int(rtn)], group)
-                elif opted == '2':
-                    for v in candi[int(rtn)].master.values():
-                        Template.attrdump(v)
-                else:
-                    raise TrpgError('OK Fully Complete!')
     
-        def holdermap(classt, group):
-            print('SELECT IN {0}'.format(Template.holder[group][classt]))
-            rtn = input('グループ -{0}- > クラス -{1}- のテンプレート選択 >'.format(group, classt.__name__))
-            Template.holdermap(group, classt, rtn)
+    @classmethod
+    def dummy(self):
+        return (list(), '', False)
+            
+    @classmethod
+    def argdic_first(self, *dummy):
+        return {'curr_func': Scenario.group_out, 'arg': (), 'next_func': Scenario.group_in}
 
-        print('UPDATE IN {0}'.format(list(Template.holder.keys())))
-        group = input('グループを指定してください > ')
+    @classmethod
+    def group_out(self):
+        return (list(Template.holder.keys()), 'グループを指定してください', False)
+
+    @classmethod
+    def group_in(self, group):
+        Scenario.group = group
+        return {'curr_func': Scenario.class_out, 'arg': (), 'next_func': Scenario.class_in}
+
+    @classmethod
+    def class_out(self):
+        # インポート部分
+        from basemods import Holder
 
         classts = ('Param', 'Thing', 'Process', 'Event', 'Route', 'Role')
+
+        Scenario.candi = [Holder.classt(c) for c in classts]
+
+        return (Scenario.candi, 'クラスを選んでください', True)
+        
+    @classmethod
+    def class_in(self, classt):
+        Scenario.classt = classt
+        return {'curr_func': Scenario.operation_out, 'arg': (), 'next_func': Scenario.operation_in}
+
+    @classmethod
+    def operation_out(self):
+        option = {0: 'クラス作成', 1: 'テンプレートマッピング', 2: 'クラスインスタンス一覧'}
+        message = '{0} クラス操作を選択します'.format(Scenario.classt.__name__)
+        return (option, message, False)
+
+    @classmethod
+    def operation_in(self, opted):
+        if opted == '0':
+            # 0: 'クラス作成' を選択 
+            Scenario.template = Template(Scenario.classt, Scenario.group)
+            Scenario.dialog = Scenario.template.dialog_hop()
+            return {'curr_func': Scenario.dummy, 'arg': (), 'next_func': Scenario.template_next}
+            
+        elif opted == '1':
+            # 1: 'テンプレートマッピング' を選択
+            return {'curr_func': Scenario.template_out, 'arg': (), 'next_func': Scenario.template_in}
+            
+        elif opted == '2':
+            # 2: 'クラスインスタンス一覧' を選択
+            for v in Scenario.classt.master.values():
+                Template.attrdump(v)
+            return {'curr_func': Scenario.operation_out, 'arg': (), 'next_func': Scenario.operation_in}
+
+        else:
+            raise TrpgError('OK Fully Complete!')
+
+    @classmethod
+    def template_out(self):
+        print(list(Template.holder.keys()))
+        option = Template.holder[Scenario.group][Scenario.classt]
+        message = 'グループ -{0}- > クラス -{1}- のテンプレート選択'.format(Scenario.group, Scenario.classt.__name__)
+        return (option, message, True)
+
+    @classmethod
+    def template_in(self, rtn):
+        return Template.holdermap(Scenario.group, Scenario.classt, rtn)
+
+    @classmethod
+    def template_next(self, *dummy):
         try:
-            classtmake(classts, group)
-        except TrpgError as e:
-            print(e)
+            Scenario.next = next(Scenario.dialog)
+        except StopIteration:
+            return Scenario.template.dialog_jump()
+       
+        return {'curr_func': Scenario.template.dialog_step, 'arg': (Scenario.next,), 'next_func': Scenario.template_next}
 
-
+    @classmethod
     def save(self):
         # delete * from scenario where name=#{name}
         # t.jsondumps for all obj
         # insert senario set jsondumps
         pass
 
+    @classmethod
     def close(self):
         pass

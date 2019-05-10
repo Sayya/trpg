@@ -14,8 +14,10 @@ class Arbit:
         for i in lis:
             if hasattr(i, 'name'):
                 lis_name = i.name
-            else:
+            elif hasattr(i, '__name__'):
                 lis_name = i.__name__
+            else:
+                lis_name = repr(i)
             lis_disp.append(lis_name)
         candi = dict(list(zip(list(range(len(lis))), lis_disp)))
 
