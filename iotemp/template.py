@@ -26,18 +26,21 @@ class Template(Master):
         if name not in Template.holder[self.group][classt].keys():
             Template.holder[self.group][classt][self.name] = ''
 
-    def check_in(self, tmpl, desc):
+    def instantiate_type(self, tmpl, desc):
         # インポート部分
         from basemods import Holder
 
         def outputu(desc, typet):
-            if self.existclss is not None:
-                self.default = getattr(self.existclss, self.s_name)
-                message = '{0}({1}): {2} (default: {3})'.format(desc, self.s_name, typet, self.default)
-            else:
-                message = '{0}({1}): {2}'.format(desc, self.s_name, typet)
+            try:
+                if self.existclss is not None:
+                    self.default = getattr(self.existclss, self.s_name)
+                    message = '{0}({1}): {2} (default: {3})'.format(desc, self.s_name, typet, self.default)
+                else:
+                    message = '{0}({1}): {2}'.format(desc, self.s_name, typet)
 
-            return (list(), message, False)
+                yield (list(), message, False)
+            except TrpgError as e:
+                raise e
         
         tmpls = tmpl.split('-')
 
@@ -54,36 +57,27 @@ class Template(Master):
             if self.s_name == 'name':
                 if self.name == '':
                     print('UPDATE IN {0}'.format(list(self.classt.master.keys())))
-                    return outputu(desc, self.typet)
+                yield outputu(desc, self.typet)
             else:
-                try:
-                    return outputu(desc, self.typet)
-                except TrpgError as e:
-                    raise e
+                yield outputu(desc, self.typet)
         elif self.typet == 'int':
-            try:
-                return outputu(desc, self.typet)
-            except TrpgError as e:
-                raise e
+            yield outputu(desc, self.typet)
         elif self.typet == 'bool':
-            try:
-                return outputu(desc, self.typet)
-            except TrpgError as e:
-                raise e
+            yield outputu(desc, self.typet)
         elif self.typet == 'tuple':
             self.tlis = list()
             for i in range(int(self.numbt)):
-                yield self.check_in(self.valut, desc)
+                yield self.instantiate_type(self.valut, desc)
         elif self.typet == 'list':
             self.tlis = list()
             for i in range(int(self.numbt)):
-                yield self.check_in(self.valut, desc)
+                yield self.instantiate_type(self.valut, desc)
         elif self.typet == 'dict':
             tt = self.valut.split(':')
             self.tlis = list()
             for i in range(int(self.numbt)):
-                yield self.check_in(tt[0], desc)
-                yield self.check_in(tt[1], desc)
+                yield self.instantiate_type(tt[0], desc)
+                yield self.instantiate_type(tt[1], desc)
         else:
             self.tt = self.typet.split('.')
             classtnames = ('Param', 'Thing', 'Process', 'Event', 'Route', 'Role')
@@ -97,7 +91,7 @@ class Template(Master):
 
                 print('SELECT IN {0}'.format(self.s_candi))
 
-                return outputu(desc, self.typet)
+                yield outputu(desc, self.typet)
 
     def check_out(self, opted):
         # インポート部分
@@ -110,10 +104,9 @@ class Template(Master):
                         rtn = self.default
                     else:
                         raise TrpgError('デフォルトを設定します')
-
             return rtn
-
-        # print('{0}-{1}-{2} is required'.format(typet,valut,numbt))
+        
+        print('{0}-{1}-{2} is required'.format(self.typet, self.valut, self.numbt))
         exits = ('q', 'exit', 'quit')
 
         if self.typet == 'str':
@@ -141,10 +134,10 @@ class Template(Master):
         elif self.typet == 'bool':
             rtn = bool(opted)
         elif self.typet == 'tuple':
-            self.tlis.append(opted)
+            self.tlis = list(opted)
             rtn = tuple(self.tlis)
         elif self.typet == 'list':
-            self.tlis.append(opted)
+            self.tlis = list(opted)
             rtn = self.tlis
         elif self.typet == 'dict':
             keyt = opted
@@ -206,9 +199,9 @@ class Template(Master):
         if len(annos) > 1:
             desc = annos[1].replace(';', ',')
 
-            return {'curr_func': self.check_in, 'arg': (tmpl, desc, self.s_name), 'next_func': self.check_out}
+            return self.instantiate_type(tmpl, desc)
         else:
-            return
+            raise TrpgError('アノテーションがありません')
 
     def dialog_step_in(self, c):
         try:

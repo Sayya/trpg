@@ -94,7 +94,7 @@ class Scenario:
         except StopIteration:
             return Scenario.template.dialog_jump()
        
-        return {'curr_func': Scenario.template.dialog_step, 'arg': (Scenario.next,), 'next_func': Scenario.template_next}
+        return {'curr_func': Scenario.template.dialog_step_out, 'arg': (Scenario.next,), 'next_func': Scenario.template.check_out}
 
     @classmethod
     def save(self):
