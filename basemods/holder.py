@@ -62,6 +62,8 @@ class Holder:
           OUT: {'curr_func': <func>, 'arg': (), 'next_func': <func>, 'multi_flag': 0/1}
         """
         try:
+            next_func = Holder.iface['next_func']
+            print('##### {0} <- ({1}) #####'.format(next_func.__name__, rtn))
             return Holder.iface['next_func'](rtn)
         except TrpgError as e:
             raise e
