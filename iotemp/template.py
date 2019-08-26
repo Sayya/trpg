@@ -26,7 +26,7 @@ class Template(Master):
         if name not in Template.holder[self.group][classt].keys():
             Template.holder[self.group][classt][self.name] = ''
 
-    def instantiate_type(self, tmpl, desc):
+    def check_out(self, tmpl, desc):
         # インポート部分
         from basemods import Holder
 
@@ -38,7 +38,7 @@ class Template(Master):
                 else:
                     message = '{0}({1}): {2}'.format(desc, self.s_name, typet)
 
-                yield (list(), message, False)
+                return typet
             except TrpgError as e:
                 raise e
         
@@ -57,32 +57,33 @@ class Template(Master):
             if self.s_name == 'name':
                 if self.name == '':
                     print('UPDATE IN {0}'.format(list(self.classt.master.keys())))
-                yield outputu(desc, self.typet)
+                return outputu(desc, self.typet)
             else:
-                yield outputu(desc, self.typet)
+                return outputu(desc, self.typet)
         elif self.typet == 'int':
-            yield outputu(desc, self.typet)
+            return outputu(desc, self.typet)
         elif self.typet == 'bool':
-            yield outputu(desc, self.typet)
+            return outputu(desc, self.typet)
         elif self.typet == 'tuple':
             self.tlis = list()
             for i in range(int(self.numbt)):
-                yield self.instantiate_type(self.valut, desc)
+                return self.check_out(self.valut, desc)
         elif self.typet == 'list':
             self.tlis = list()
             for i in range(int(self.numbt)):
-                yield self.instantiate_type(self.valut, desc)
+                return self.check_out(self.valut, desc)
         elif self.typet == 'dict':
             tt = self.valut.split(':')
             self.tlis = list()
             for i in range(int(self.numbt)):
-                yield self.instantiate_type(tt[0], desc)
-                yield self.instantiate_type(tt[1], desc)
+                tt0 = self.check_out(tt[0], desc)
+                tt1 = self.check_out(tt[1], desc)
+                return {tt0, tt1}
         else:
             self.tt = self.typet.split('.')
             classtnames = ('Param', 'Thing', 'Process', 'Event', 'Route', 'Role')
             if self.tt[0] in classtnames:
-                self.s_classt = Holder.classt(tt[0])
+                self.s_classt = Holder.classt(self.tt[0])
                 if self.tt[1] == 'name':
                     self.s_candi = list(self.s_classt.master.keys())
                 elif self.tt[1] == 'deed':
@@ -91,9 +92,9 @@ class Template(Master):
 
                 print('SELECT IN {0}'.format(self.s_candi))
 
-                yield outputu(desc, self.typet)
+                return outputu(desc, self.typet)
 
-    def check_out(self, opted):
+    def check_in(self, opted):
         # インポート部分
         from basemods import Holder
 
@@ -171,62 +172,78 @@ class Template(Master):
         else:
             print('選択しませんでした')
 
-    def dialog_hop(self):
+    def dialog_out(self):
         self.sign = signature(self.classt.__init__).parameters
 
         if not issubclass(self.classt, Master):
             raise TrpgError('{0} は {1} のサブクラスではありません'.format(self.classt.__name__, Master.__name__))
 
         print('{0} のセッティング'.format(self.classt.__name__))
-    
-        self.argdic = dict()
+
+        self.argdic_candi = dict()
+
         for i in list(self.sign)[1:]:
-            yield self.sign[i]
 
-    def dialog_step_out(self, s):
-        self.s_name = s.name
-        anno = s.annotation
-        dvalue = s.default
-        dclass = type(s.default)
+            s = self.sign[i]
+            self.s_name = s.name
+            anno = s.annotation
+            dvalue = s.default
+            dclass = type(s.default)
 
-        if dclass is type:
-            print('[parameter]{0} (Necessary)'.format(self.s_name))
-        else:
-            print('[parameter]{0} : [default]{1} ({2})'.format(self.s_name, dvalue, dclass.__name__))
-        
-        annos = anno.split(',')
-        tmpl = annos[0]
-        if len(annos) > 1:
-            desc = annos[1].replace(';', ',')
-
-            return self.instantiate_type(tmpl, desc)
-        else:
-            raise TrpgError('アノテーションがありません')
-
-    def dialog_step_in(self, c):
-        try:
-            self.argdic[self.s_name] = c
-        except TrpgError as e:
-            print('MESSAGE: ', e.value)
-            if self.existclss is not None:
-                # デフォルト
-                self.argdic[self.s_name] = getattr(self.existclss, self.s_name)
+            if dclass is type:
+                print('[parameter]{0} (Necessary)'.format(self.s_name))
             else:
-                self.argdic[self.s_name] = ''
+                print('[parameter]{0} : [default]{1} ({2})'.format(self.s_name, dvalue, dclass.__name__))
+            
+            annos = anno.split(',')
+            tmpl = annos[0]
+            if len(annos) > 1:
+                desc = annos[1].replace(';', ',')
 
-        return (list(), '', False)
+                self.argdic_candi[self.s_name] = self.check_out(tmpl, desc)
+            else:
+                raise TrpgError('アノテーションがありません')
+        
+        return self.argdic_candi
 
-    def dialog_jump(self):
+    def dialog_in(self, opted):
         # インポート部分
         from iotemp import Scenario
 
-        if self.existclss is not None:
-            print('アップデート完了: {0}'.format(self.existclss.name))
-            Template.attrdump(self.existclss)
-        else:
-            self.makeobj()
+        self.jsonload(opted)
 
-        return {'curr_func': Scenario.operation_out, 'arg': (), 'next_func': Scenario.operation_in}
+        for i in list(self.sign)[1:]:
+
+            s = self.sign[i]
+            self.s_name = s.name
+            anno = s.annotation
+
+            annos = anno.split(',')
+            tmpl = annos[0]
+            if len(annos) > 1:
+                desc = annos[1].replace(';', ',')
+
+                self.argdic_candi[self.s_name] = self.check_out(tmpl, desc)
+            else:
+                raise TrpgError('アノテーションがありません')
+
+            try:
+                self.argdic[self.s_name] = self.check_out(self.argdic[self.s_name], desc)
+            except TrpgError as e:
+                print('MESSAGE: ', e.value)
+                if self.existclss is not None:
+                    # デフォルト
+                    self.argdic[self.s_name] = getattr(self.existclss, self.s_name)
+                else:
+                    self.argdic[self.s_name] = ''
+
+            if self.existclss is not None:
+                print('アップデート完了: {0}'.format(self.existclss.name))
+                Template.attrdump(self.existclss)
+            else:
+                self.makeobj()
+
+            return {'curr_func': Scenario.operation_out, 'arg': (), 'next_func': Scenario.operation_in}
     
     @classmethod
     def attrdump(self, trpgobj):

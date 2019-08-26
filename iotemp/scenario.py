@@ -60,8 +60,8 @@ class Scenario:
         if opted == '0':
             # 0: 'クラス作成' を選択 
             Scenario.template = Template(Scenario.classt, Scenario.group)
-            Scenario.dialog = Scenario.template.dialog_hop()
-            return {'curr_func': Scenario.dummy, 'arg': (), 'next_func': Scenario.template_next}
+        
+            return {'curr_func': Scenario.template.dialog_out, 'arg': (), 'next_func': Scenario.template.dialog_in}
             
         elif opted == '1':
             # 1: 'テンプレートマッピング' を選択
@@ -86,15 +86,6 @@ class Scenario:
     @classmethod
     def template_in(self, rtn):
         return Template.holdermap(Scenario.group, Scenario.classt, rtn)
-
-    @classmethod
-    def template_next(self, *dummy):
-        try:
-            Scenario.next = next(Scenario.dialog)
-        except StopIteration:
-            return Scenario.template.dialog_jump()
-       
-        return {'curr_func': Scenario.template.dialog_step_out, 'arg': (Scenario.next,), 'next_func': Scenario.template.check_out}
 
     @classmethod
     def save(self):
