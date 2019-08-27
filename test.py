@@ -123,11 +123,13 @@ if __name__ == '__main__':
 
                 try:
                     if not wiz_out[2]:
+                        # 自由に入力
                         if wiz_out[0] is None:
                             raise TrpgError('選択肢しませんでした')
                         print('UPDATE IN {0}'.format(wiz_out[0]))
                         wiz_in = input('{0} > '.format(wiz_out[1]))
                     else:
+                        # リストからの選択
                         s_candi = Arbit.input_out(wiz_out[0], 'Scenario', 'make')
                         print('SELECT IN {0}'.format(s_candi))
                         nam = input('{0} > '.format(wiz_out[1]))

@@ -46,8 +46,9 @@ class Holder:
     def progr_out(self, iface):
         """
         ユーザに選択してもらう候補を出力
-          OUT: {'curr_func': <func>, 'arg': (), 'next_func': <func>, 'multi_flag': 0/1}
-          OUT: (lis, name, desc, multi_f)
+          IN: {'curr_func': <func>, 'arg': (), 'next_func': <func>, 'multi_flag': 0/1}
+          OUT(wizard): (lis, desc, multi_f)
+          OUT(plot)  : (lis, name, desc, multi_f)
         """
         Holder.iface = iface
         try:

@@ -26,11 +26,12 @@ class Template(Master):
         if name not in Template.holder[self.group][classt].keys():
             Template.holder[self.group][classt][self.name] = ''
 
-    def check_out(self, tmpl, desc):
+    def check_out(self, tmpl, desc, numbt=None):
         # インポート部分
         from basemods import Holder
 
-        def outputu(desc, typet):
+        def outputu(desc, typet, candi=list()):
+            self.default = None
             try:
                 if self.existclss is not None:
                     self.default = getattr(self.existclss, self.s_name)
@@ -38,7 +39,8 @@ class Template(Master):
                 else:
                     message = '{0}({1}): {2}'.format(desc, self.s_name, typet)
 
-                return typet
+                # (型, 候補リスト, 繰り返し回数, 入力領域, デフォルト)
+                return (typet, candi, self.numbt, list(), self.default)
             except TrpgError as e:
                 raise e
         
@@ -46,7 +48,7 @@ class Template(Master):
 
         self.typet = tmpls[0]
         self.valut = ''
-        self.numbt = ''
+        self.numbt = numbt # tuple 定数a, list 無制限=0, dict 無制限=0の場合
         if len(tmpls) > 1:
             self.numbt = int(tmpls[1])
             if self.numbt < 1 or 1000 < self.numbt:
@@ -65,20 +67,14 @@ class Template(Master):
         elif self.typet == 'bool':
             return outputu(desc, self.typet)
         elif self.typet == 'tuple':
-            self.tlis = list()
-            for i in range(int(self.numbt)):
-                return self.check_out(self.valut, desc)
+            return self.check_out(self.valut, desc, self.numbt)
         elif self.typet == 'list':
-            self.tlis = list()
-            for i in range(int(self.numbt)):
-                return self.check_out(self.valut, desc)
+            return self.check_out(self.valut, desc, self.numbt)
         elif self.typet == 'dict':
             tt = self.valut.split(':')
-            self.tlis = list()
-            for i in range(int(self.numbt)):
-                tt0 = self.check_out(tt[0], desc)
-                tt1 = self.check_out(tt[1], desc)
-                return {tt0, tt1}
+            tt0 = self.check_out(tt[0], desc, self.numbt)
+            tt1 = self.check_out(tt[1], desc, self.numbt)
+            return outputu(desc, 'dict', (tt0, tt1))
         else:
             self.tt = self.typet.split('.')
             classtnames = ('Param', 'Thing', 'Process', 'Event', 'Route', 'Role')
@@ -92,7 +88,7 @@ class Template(Master):
 
                 print('SELECT IN {0}'.format(self.s_candi))
 
-                return outputu(desc, self.typet)
+                return outputu(desc, self.typet, self.s_candi)
 
     def check_in(self, opted):
         # インポート部分
@@ -204,7 +200,7 @@ class Template(Master):
             else:
                 raise TrpgError('アノテーションがありません')
         
-        return self.argdic_candi
+        return (self.argdic_candi, 'クラスを作成してください', False)
 
     def dialog_in(self, opted):
         # インポート部分
