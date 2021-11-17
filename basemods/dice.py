@@ -15,7 +15,7 @@ class Dice:
         self.flor = lambda: self.times * self.maxim + self.offset
 
     @classmethod
-    def makedice(self, form):
+    def makedice(cls, form):
         """ 'xdy'/'xdy+z'形式なら Dice オブジェクトに変換 """
         if type(form) is str:
             times = 0
@@ -47,7 +47,7 @@ class Dice:
             return 0
             
     @classmethod
-    def checkdice(self, form):
+    def checkdice(cls, form):
         """ 'xdy'/'xdy+z'形式かどうかを判定 """
         rtn = 0
         

@@ -4,7 +4,7 @@ class Holder:
     """ 仲介 """
 
     @classmethod
-    def classt(self, elemname):
+    def classt(cls, elemname):
         import trpgmods
 
         if elemname not in ('Param', 'Thing', 'Process', 'Event', 'Route', 'Role'):
@@ -13,7 +13,7 @@ class Holder:
         return getattr(trpgmods, elemname)
 
     @classmethod
-    def master(self, elemname, objname=None):
+    def master(cls, elemname, objname=None):
         import trpgmods
 
         if elemname not in ('Param', 'Thing', 'Process', 'Event', 'Route', 'Role'):
@@ -27,7 +27,7 @@ class Holder:
             raise TrpgError('{0} -{1}- はありません'.format(elemname, objname))
 
     @classmethod
-    def buildvalid(self):
+    def buildvalid(cls):
         import trpgmods
 
         classts = ('Param', 'Thing', 'Process', 'Event', 'Route', 'Role')
@@ -43,7 +43,7 @@ class Holder:
                     del classmaster[k]
     
     @classmethod
-    def progr_out(self, iface):
+    def progr_out(cls, iface):
         """
         ユーザに選択してもらう候補を出力
           IN: {'curr_func': <func>, 'arg': (), 'next_func': <func>, 'multi_flag': 0/1}
@@ -57,7 +57,7 @@ class Holder:
             raise e
 
     @classmethod
-    def progr_in(self, rtn):
+    def progr_in(cls, rtn):
         """ 
           IN: 選択結果
           OUT: {'curr_func': <func>, 'arg': (), 'next_func': <func>, 'multi_flag': 0/1}

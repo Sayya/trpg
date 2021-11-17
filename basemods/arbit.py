@@ -6,7 +6,7 @@ class Arbit:
     nextmethod = lambda: None
 
     @classmethod
-    def input_out(self, lis, name, desc):
+    def input_out(cls, lis, name, desc):
         if len(lis) == 0:
             raise TrpgError('選択肢はありません')
         
@@ -24,7 +24,7 @@ class Arbit:
         return candi
 
     @classmethod
-    def input_in(self, lis, candi, nam):
+    def input_in(cls, lis, candi, nam):
         if nam in [str(i) for i in candi.keys()]:
             return lis[int(nam)]
         else:
